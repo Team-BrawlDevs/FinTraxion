@@ -1,0 +1,57 @@
+# Environment / secrets
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Local artifacts / models
+faiss_index.bin
+faiss_meta.json
+*.bin
+*.db
+*.sqlite
+
+# FastAPI / other temp files
+*.log
+.DS_Store
+Thumbs.db
+
+# Node / frontend
+frontend/node_modules/
+node_modules/
+
+frontend/dist/
+dist/
+
+frontend/build/
+build/
+
+.vite/
+*.tsbuildinfo
+
+# IDEs / tooling
+.idea/
+.vscode/
+.cursor/
+
+# Misc
+.DS_Store
+

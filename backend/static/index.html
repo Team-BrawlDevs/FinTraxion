@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinTraxion Backend Test Console</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --primary: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --border: #334155;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 { margin-top: 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .panel h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: var(--primary);
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    input, select, textarea, button {
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 14px;
+    }
+    input, textarea { width: 100%; }
+    textarea { min-height: 90px; resize: vertical; }
+    button {
+      cursor: pointer;
+      background: #0b2540;
+    }
+    button:hover { border-color: var(--primary); }
+    .mono {
+      font-family: Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      min-height: 160px;
+      max-height: 360px;
+      overflow: auto;
+    }
+    .small { color: var(--muted); font-size: 12px; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .ok { background: rgba(34,197,94,.2); color: var(--ok); }
+    .warn { background: rgba(245,158,11,.2); color: var(--warn); }
+    .err { background: rgba(239,68,68,.2); color: var(--err); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>FinTraxion Backend Test Console</h1>
+    <p class="small">Use this page to test <code>/run</code>, <code>/stream</code>, <code>/status</code>, <code>/approve</code>, and <code>/logs</code>.</p>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Run Controls <span id="runStateTag" class="tag warn">idle</span></h2>
+        <div class="row">
+          <button id="btnRun">Start Run</button>
+          <button id="btnStopStream">Stop Stream</button>
+          <button id="btnHealth">Health</button>
+        </div>
+        <div class="row">
+          <label for="runId">Run ID</label>
+          <input id="runId" placeholder="Run ID appears here after /run" />
+        </div>
+        <div class="row">
+          <button id="btnStream">Connect Stream</button>
+          <button id="btnStatus">Fetch Status</button>
+          <button id="btnLogs">Fetch Logs</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Human Approval</h2>
+        <div class="row">
+          <label for="approvalDecision">Decision</label>
+          <select id="approvalDecision">
+            <option value="approved">approved</option>
+            <option value="rejected">rejected</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="approvalNotes">Notes</label>
+          <textarea id="approvalNotes" placeholder="Optional notes"></textarea>
+        </div>
+        <div class="row">
+          <button id="btnApprove">Submit /approve</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Live Stream Events</h2>
+        <div id="streamOut" class="mono"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Status Output</h2>
+        <div id="statusOut" class="mono"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Logs Output</h2>
+        <div id="logsOut" class="mono"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Request/Response Debug</h2>
+        <div id="debugOut" class="mono"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const runIdEl = document.getElementById("runId");
+    const streamOut = document.getElementById("streamOut");
+    const statusOut = document.getElementById("statusOut");
+    const logsOut = document.getElementById("logsOut");
+    const debugOut = document.getElementById("debugOut");
+    const runStateTag = document.getElementById("runStateTag");
+    const approvalDecisionEl = document.getElementById("approvalDecision");
+    const approvalNotesEl = document.getElementById("approvalNotes");
+
+    let eventSource = null;
+
+    function setRunState(label, cls) {
+      runStateTag.className = "tag " + cls;
+      runStateTag.textContent = label;
+    }
+
+    function appendBox(el, msg) {
+      const line = (typeof msg === "string") ? msg : JSON.stringify(msg, null, 2);
+      el.textContent += line + "\n";
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function requestJson(url, options = {}) {
+      const res = await fetch(url, options);
+      const txt = await res.text();
+      let data;
+      try {
+        data = txt ? JSON.parse(txt) : {};
+      } catch {
+        data = { raw: txt };
+      }
+      appendBox(debugOut, { url, method: options.method || "GET", status: res.status, data });
+      if (!res.ok) throw new Error(data.detail || txt || ("HTTP " + res.status));
+      return data;
+    }
+
+    function currentRunId() {
+      return runIdEl.value.trim();
+    }
+
+    function connectStream(runId) {
+      if (!runId) {
+        alert("Run ID is required");
+        return;
+      }
+      if (eventSource) eventSource.close();
+      streamOut.textContent = "";
+      eventSource = new EventSource("/stream/" + encodeURIComponent(runId));
+      setRunState("streaming", "ok");
+
+      eventSource.onmessage = (evt) => {
+        let payload = evt.data;
+        try { payload = JSON.parse(evt.data); } catch {}
+        appendBox(streamOut, payload);
+        if (payload && payload.event === "awaiting_human_approval") setRunState("awaiting approval", "warn");
+        if (payload && payload.event === "workflow_complete") setRunState("completed", "ok");
+        if (payload && payload.event === "error") setRunState("error", "err");
+        if (payload && payload.event === "done") {
+          setRunState("stream ended", "warn");
+          eventSource.close();
+          eventSource = null;
+        }
+      };
+
+      eventSource.onerror = () => {
+        appendBox(streamOut, "Stream connection closed or errored.");
+        setRunState("stream error", "err");
+      };
+    }
+
+    document.getElementById("btnRun").addEventListener("click", async () => {
+      try {
+        setRunState("starting", "warn");
+        const data = await requestJson("/run", { method: "POST" });
+        runIdEl.value = data.run_id;
+        appendBox(streamOut, { event: "run_started", run_id: data.run_id });
+        connectStream(data.run_id);
+      } catch (err) {
+        setRunState("error", "err");
+        alert(err.message);
+      }
+    });
+
+    document.getElementById("btnStream").addEventListener("click", () => connectStream(currentRunId()));
+
+    document.getElementById("btnStopStream").addEventListener("click", () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        setRunState("stream stopped", "warn");
+      }
+    });
+
+    document.getElementById("btnStatus").addEventListener("click", async () => {
+      try {
+        const runId = currentRunId();
+        const data = await requestJson("/status?run_id=" + encodeURIComponent(runId));
+        statusOut.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById("btnLogs").addEventListener("click", async () => {
+      try {
+        const runId = currentRunId();
+        const data = await requestJson("/logs?run_id=" + encodeURIComponent(runId) + "&limit=100");
+        logsOut.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById("btnApprove").addEventListener("click", async () => {
+      try {
+        const runId = currentRunId();
+        const payload = {
+          run_id: runId,
+          decision: approvalDecisionEl.value,
+          notes: approvalNotesEl.value || null
+        };
+        const data = await requestJson("/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        appendBox(streamOut, { event: "approve_submitted", response: data });
+        connectStream(runId);
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById("btnHealth").addEventListener("click", async () => {
+      try {
+        await requestJson("/health");
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+  </script>
+</body>
+</html>
