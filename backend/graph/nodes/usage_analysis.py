@@ -11,9 +11,9 @@ import pandas as pd
 from graph.state import AgentState
 from utils.logging_utils import get_logger
 
-LOGGER_NAME = "enrichment_node"
+LOGGER_NAME = "usage_analysis_agent"
 
-# Mock pricing catalogue ($/month per seat)
+# Mocks elided for brevity (keeping the original dictionaries)
 MOCK_PRICING: dict[str, float] = {
     "Slack": 7.25, "Microsoft Teams": 6.00, "Zoom": 14.99, "Google Meet": 0.0,
     "Notion": 10.00, "Confluence": 5.75, "Jira": 8.15, "Asana": 10.99,
@@ -42,34 +42,38 @@ CATEGORIES: dict[str, str] = {
     "Microsoft 365": "Productivity",
 }
 
+class UsageAnalysisAgent:
+    """
+    Agent responsible for analyzing seat usage, active status,
+    and calculating true utilization parameters of normalized services.
+    """
+    def __call__(self, state: AgentState) -> dict:
+        log = get_logger(LOGGER_NAME, state["run_id"])
+        log.info("▶ UsageAnalysisAgent started")
 
-def enrichment_node(state: AgentState) -> dict:
-    log = get_logger(LOGGER_NAME, state["run_id"])
-    log.info("▶ enrichment_node started")
+        records = state["normalized_services"]
+        if not records:
+            log.warning("No normalized services to enrich")
+            return {"usage_data": []}
 
-    records = state["normalized_services"]
-    if not records:
-        log.warning("No normalized services to enrich")
-        return {"usage_data": []}
+        df = pd.DataFrame(records)
 
-    df = pd.DataFrame(records)
+        # Add mock usage + pricing columns
+        df["seat_count"] = df["canonical_name"].apply(
+            lambda n: random.randint(5, 200)
+        )
+        df["last_used_days_ago"] = df["canonical_name"].apply(
+            lambda n: random.randint(0, 90)
+        )
+        df["price_per_seat"] = df["canonical_name"].map(MOCK_PRICING).fillna(
+            df["amount"] if "amount" in df.columns else 0
+        )
+        df["monthly_cost"] = (df["price_per_seat"] * df["seat_count"]).round(2)
+        df["category"] = df["canonical_name"].map(CATEGORIES).fillna("Other")
+        df["utilisation_score"] = df["last_used_days_ago"].apply(
+            lambda d: max(0.0, round(1.0 - d / 90.0, 2))
+        )
 
-    # Add mock usage + pricing columns
-    df["seat_count"] = df["canonical_name"].apply(
-        lambda n: random.randint(5, 200)
-    )
-    df["last_used_days_ago"] = df["canonical_name"].apply(
-        lambda n: random.randint(0, 90)
-    )
-    df["price_per_seat"] = df["canonical_name"].map(MOCK_PRICING).fillna(
-        df["amount"] if "amount" in df.columns else 0
-    )
-    df["monthly_cost"] = (df["price_per_seat"] * df["seat_count"]).round(2)
-    df["category"] = df["canonical_name"].map(CATEGORIES).fillna("Other")
-    df["utilisation_score"] = df["last_used_days_ago"].apply(
-        lambda d: max(0.0, round(1.0 - d / 90.0, 2))
-    )
-
-    usage_data = df.to_dict(orient="records")
-    log.info(f"▶ enrichment_node complete — {len(usage_data)} enriched records")
-    return {"usage_data": usage_data}
+        usage_data = df.to_dict(orient="records")
+        log.info(f"▶ UsageAnalysisAgent complete — analyzed {len(usage_data)} records")
+        return {"usage_data": usage_data}

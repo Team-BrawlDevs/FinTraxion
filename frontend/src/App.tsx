@@ -239,8 +239,6 @@ export default function App() {
             recommendations={recommendations}
             needsHumanApproval={needsHumanApproval}
             disabled={approveBusy}
-            onApprove={() => onApprove("approved")}
-            onReject={() => onApprove("rejected")}
           />
 
           {needsHumanApproval ? (
@@ -256,6 +254,23 @@ export default function App() {
                   placeholder="e.g. Approved for execution during change window"
                 />
               </label>
+              
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={() => onApprove("approved")}
+                  disabled={approveBusy}
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 disabled:opacity-60 px-5 py-2 text-sm font-bold shadow-sm"
+                >
+                  Approve All
+                </button>
+                <button
+                  onClick={() => onApprove("rejected")}
+                  disabled={approveBusy}
+                  className="rounded-xl bg-rose-600 hover:bg-rose-500 border border-rose-400/30 disabled:opacity-60 px-5 py-2 text-sm font-bold shadow-sm"
+                >
+                  Reject All
+                </button>
+              </div>
             </div>
           ) : null}
         </div>

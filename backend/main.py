@@ -74,7 +74,8 @@ class RunResponse(BaseModel):
 
 class ApproveRequest(BaseModel):
     run_id: str
-    decision: str   # "approved" | "rejected"
+    decision: str   # Legacy: "approved" | "rejected"
+    decisions: Optional[dict[str, str]] = None  # map of action string -> "approved" | "rejected"
     notes: Optional[str] = None
 
 
@@ -163,6 +164,7 @@ async def run_workflow():
         "execution_logs": [],
         "errors": [],
         "human_feedback": None,
+        "human_feedback_dict": {},
         "context_memory": {},
         "run_id": run_id,
         "retry_count": 0,
@@ -264,6 +266,8 @@ async def approve_workflow(body: ApproveRequest):
 
     state_to_resume: AgentState = paused_state or _run_states[body.run_id]
     state_to_resume["human_feedback"] = body.decision
+    if body.decisions:
+        state_to_resume["human_feedback_dict"] = body.decisions
     state_to_resume["context_memory"]["approval_notes"] = body.notes or ""
     _run_states[body.run_id] = state_to_resume
 

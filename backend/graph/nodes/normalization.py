@@ -16,7 +16,7 @@ from services.embeddings import embed_texts
 from services.faiss_store import FaissStore
 from utils.logging_utils import get_logger
 
-LOGGER_NAME = "normalization_node"
+LOGGER_NAME = "normalization_agent"
 
 # Canonical SaaS names the system knows about
 CANONICAL_SERVICES = [
@@ -33,61 +33,66 @@ def _embed(texts: list[str]) -> list[list[float]]:
     return embed_texts(texts, task_type="retrieval_document")
 
 
-def normalization_node(state: AgentState) -> dict:
-    log = get_logger(LOGGER_NAME, state["run_id"])
-    log.info("▶ normalization_node started")
+class NormalizationAgent:
+    """
+    Agent responsible for normalizing raw vendor names to canonical service names.
+    Uses FAISS semantic search with fuzzy-matching fallback.
+    """
+    def __call__(self, state: AgentState) -> dict:
+        log = get_logger(LOGGER_NAME, state["run_id"])
+        log.info("▶ NormalizationAgent started")
 
-    errors = list(state.get("errors", []))
-    faiss_enabled = True
+        errors = list(state.get("errors", []))
+        faiss_enabled = True
 
-    # Build FAISS index from canonical names on first use.
-    # If embedding is unavailable, continue with fuzzy fallback only.
-    store = FaissStore.load()
-    if store.size == 0:
-        try:
-            log.info("Building FAISS index from canonical services list")
-            canonical_embeddings = _embed(CANONICAL_SERVICES)
-            store.add(CANONICAL_SERVICES, canonical_embeddings)
-            store.save()
-        except Exception as exc:
-            faiss_enabled = False
-            err = f"Normalization FAISS bootstrap failed; using fuzzy fallback: {exc}"
-            errors.append(err)
-            log.warning(err)
+        # Build FAISS index from canonical names on first use.
+        # If embedding is unavailable, continue with fuzzy fallback only.
+        store = FaissStore.load()
+        if store.size == 0:
+            try:
+                log.info("Building FAISS index from canonical services list")
+                canonical_embeddings = _embed(CANONICAL_SERVICES)
+                store.add(CANONICAL_SERVICES, canonical_embeddings)
+                store.save()
+            except Exception as exc:
+                faiss_enabled = False
+                err = f"Normalization FAISS bootstrap failed; using fuzzy fallback: {exc}"
+                errors.append(err)
+                log.warning(err)
 
-    normalized: list[dict] = []
+        normalized: list[dict] = []
 
-    for record in state["raw_data"]:
-        vendor = record.get("vendor", "Unknown")
-        try:
-            results = []
-            if faiss_enabled and store.size > 0:
-                query_emb = _embed([vendor])
-                if query_emb:
-                    results = store.search(query_emb[0], top_k=1)
+        for record in state["raw_data"]:
+            vendor = record.get("vendor", "Unknown")
+            try:
+                results = []
+                if faiss_enabled and store.size > 0:
+                    query_emb = _embed([vendor])
+                    if query_emb:
+                        results = store.search(query_emb[0], top_k=1)
 
-            if results and results[0][1] >= FAISS_SIMILARITY_THRESHOLD:
-                canonical = results[0][0]
-                method = "faiss"
-                confidence = results[0][1]
-            else:
-                # Fuzzy fallback
-                match, score = fuzz_process.extractOne(vendor, CANONICAL_SERVICES)
-                canonical = match if score >= 75 else vendor
-                method = "fuzzy" if score >= 75 else "raw"
-                confidence = score / 100.0
+                if results and results[0][1] >= FAISS_SIMILARITY_THRESHOLD:
+                    canonical = results[0][0]
+                    method = "faiss"
+                    confidence = results[0][1]
+                else:
+                    # Fuzzy fallback
+                    match, score = fuzz_process.extractOne(vendor, CANONICAL_SERVICES)
+                    canonical = match if score >= 75 else vendor
+                    method = "fuzzy" if score >= 75 else "raw"
+                    confidence = score / 100.0
 
-            normalized.append({
-                **record,
-                "canonical_name": canonical,
-                "normalization_method": method,
-                "normalization_confidence": round(confidence, 3),
-            })
-            log.info(f"  {vendor!r} → {canonical!r} [{method}, conf={confidence:.2f}]")
+                normalized.append({
+                    **record,
+                    "canonical_name": canonical,
+                    "normalization_method": method,
+                    "normalization_confidence": round(confidence, 3),
+                })
+                log.info(f"  {vendor!r} → {canonical!r} [{method}, conf={confidence:.2f}]")
 
-        except Exception as exc:
-            log.warning(f"  Failed to normalize {vendor!r}: {exc}")
-            normalized.append({**record, "canonical_name": vendor, "normalization_method": "error", "normalization_confidence": 0.0})
+            except Exception as exc:
+                log.warning(f"  Failed to normalize {vendor!r}: {exc}")
+                normalized.append({**record, "canonical_name": vendor, "normalization_method": "error", "normalization_confidence": 0.0})
 
-    log.info(f"▶ normalization_node complete — {len(normalized)} records")
-    return {"normalized_services": normalized, "errors": errors}
+        log.info(f"▶ NormalizationAgent complete — {len(normalized)} records processed")
+        return {"normalized_services": normalized, "errors": errors}

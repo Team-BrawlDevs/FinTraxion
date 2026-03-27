@@ -25,11 +25,8 @@ function riskStyles(risk: Recommendation["risk"]) {
 export default function RecommendationCard(props: {
   rec: Recommendation;
   disabled: boolean;
-  showButtons: boolean;
-  onApprove: () => void;
-  onReject: () => void;
 }) {
-  const { rec, disabled, showButtons, onApprove, onReject } = props;
+  const { rec, disabled } = props;
   const styles = riskStyles(rec.risk);
 
   return (
@@ -63,29 +60,6 @@ export default function RecommendationCard(props: {
         <div className="text-xs text-slate-400">AI Reasoning</div>
         <div className="text-sm text-slate-200 leading-relaxed mt-1">{rec.justification}</div>
       </div>
-
-      {showButtons ? (
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button
-            disabled={disabled}
-            onClick={onApprove}
-            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 disabled:opacity-60 px-3 py-2 text-sm font-semibold"
-          >
-            Approve
-          </button>
-          <button
-            disabled={disabled}
-            onClick={onReject}
-            className="rounded-xl bg-rose-600 hover:bg-rose-500 border border-rose-400/30 disabled:opacity-60 px-3 py-2 text-sm font-semibold"
-          >
-            Reject
-          </button>
-        </div>
-      ) : (
-        <div className="mt-4 text-xs text-slate-400">
-          Human approval is not required for this stage.
-        </div>
-      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 """
-decision_node — uses the strong Gemini model to evaluate each duplicate candidate
+decision_agent — uses the strong Gemini model to evaluate rich shared context
 and generate structured optimization recommendations.
 
 Output per recommendation:
@@ -27,20 +27,26 @@ from graph.state import AgentState
 from services.llm_router import strong_llm
 from utils.logging_utils import get_logger
 
-LOGGER_NAME = "decision_node"
+LOGGER_NAME = "decision_agent"
 
 SYSTEM_PROMPT = """You are a SaaS cost optimization expert. Analyze the provided data about
 duplicate or overlapping SaaS subscriptions and return a JSON array of recommendations.
+
+You have access to a rich Shared Context, including:
+1. Current Usage & Spend (usage_data)
+2. Semantic Duplicates (duplicate_candidates)
+3. Past Decisions & Context (historical_context)
+4. Advanced Mocks (simulation_results, graph_context)
 
 Each recommendation MUST be a JSON object with EXACTLY these fields:
 - action: string describing the specific action to take
 - action_type: one of "scale_down_instance", "stop_idle_resource", "reduce_api_rate", "switch_pricing_tier", "alert_admin"
 - target: object describing what to change, e.g. {"service":"Slack"} or {"provider":"aws","resource_id":"i-123"}
 - params: object with action parameters, e.g. {"target_tier":"lower_tier"}
-- confidence: float between 0.0 and 1.0
+- confidence: float between 0.0 and 1.0 (penalize if lacking historical context or high risk)
 - risk: one of "low", "medium", or "high"
 - savings: estimated monthly savings in USD (float)
-- justification: 1-2 sentence explanation
+- justification: 1-2 sentence explanation citing the usage data or historical context
 
 Return ONLY a valid JSON array, no markdown, no explanation outside the JSON."""
 
@@ -166,84 +172,110 @@ def _persist_recommendations(run_id: str, recommendations: list[dict], log) -> N
             log.warning(f"Failed to persist recommendation to Supabase: {db_exc}")
 
 
-def decision_node(state: AgentState) -> dict:
-    log = get_logger(LOGGER_NAME, state["run_id"])
-    log.info("▶ decision_node started (strong model)")
+class DecisionAgent:
+    """
+    Agent responsible for evaluating shared context gathered by previous agents
+    and emitting structured optimization recommendations.
+    Uses LLM for complex reasoning, falls back to deterministic rules on failure.
+    """
+    def __call__(self, state: AgentState) -> dict:
+        log = get_logger(LOGGER_NAME, state["run_id"])
+        log.info("▶ DecisionAgent started (strong model)")
 
-    duplicates = state["duplicate_candidates"]
-    usage_data = state["usage_data"]
+        duplicates = state.get("duplicate_candidates", [])
+        usage_data = state.get("usage_data", [])
+        historical_context = state.get("historical_context", {})
 
-    if not duplicates:
-        log.info("No duplicate candidates — generating general recommendations")
+        if not duplicates:
+            log.info("No duplicate candidates — generating general recommendations")
 
-    # Build context for LLM
-    context = {
-        "duplicate_candidates": duplicates[:10],  # top 10 to stay within token budget
-        "services_summary": [
-            {
-                "name": s.get("canonical_name"),
-                "monthly_cost": s.get("monthly_cost"),
-                "seat_count": s.get("seat_count"),
-                "last_used_days_ago": s.get("last_used_days_ago"),
-                "category": s.get("category"),
-                "utilisation_score": s.get("utilisation_score"),
-            }
-            for s in usage_data[:15]
-        ],
-    }
+        # Explicitly build shared context for LLM
+        context = {
+            "duplicate_candidates": duplicates[:10],  # top 10 to stay within token budget
+            "services_summary": [
+                {
+                    "name": s.get("canonical_name"),
+                    "monthly_cost": s.get("monthly_cost"),
+                    "seat_count": s.get("seat_count"),
+                    "last_used_days_ago": s.get("last_used_days_ago"),
+                    "category": s.get("category"),
+                    "utilisation_score": s.get("utilisation_score"),
+                }
+                for s in usage_data[:15]
+            ],
+            "historical_context": historical_context,
+            "simulation_results": state.get("simulation_results", []),
+            "graph_context": state.get("graph_context", {})
+        }
 
-    prompt = f"""Analyze the following SaaS portfolio data and provide recommendations:
+        prompt = f"""Analyze the following rich SaaS portfolio context and provide recommendations:
 
 {json.dumps(context, indent=2)}
 
 Return a JSON array of 3-5 recommendations.
 Each item must include: action, action_type, target, params, confidence, risk, savings, justification."""
 
-    recommendations: list[dict] = []
+        recommendations: list[dict] = []
 
-    try:
-        llm = strong_llm()
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=prompt),
-        ]
-        response = llm.invoke(messages)
-        raw = response.content if isinstance(response.content, str) else json.dumps(response.content)
-        raw = _extract_json_payload(raw)
+        try:
+            llm = strong_llm()
+            messages = [
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=prompt),
+            ]
+            response = llm.invoke(messages)
+            raw = response.content if isinstance(response.content, str) else json.dumps(response.content)
+            raw = _extract_json_payload(raw)
 
-        parsed = json.loads(raw)
-        if isinstance(parsed, dict):
-            parsed = [parsed]
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                parsed = [parsed]
 
-        for rec in parsed:
-            recommendations.append(_normalize_recommendation(state, rec))
+            seen_keys = set()
+            for rec in parsed:
+                norm_rec = _normalize_recommendation(state, rec)
+                
+                # Check system for unique recommendations
+                target_str = str(norm_rec.get("target", {}))
+                action_type = norm_rec.get("action_type", "")
+                action_str = norm_rec.get("action", "").lower().strip()
+                
+                # Create a robust unique key based on action type and target
+                dedup_key = f"{action_type}_{target_str}"
+                # Additional check for literal exact same action texts
+                action_key = f"action_{action_str}"
+                
+                if dedup_key not in seen_keys and action_key not in seen_keys:
+                    seen_keys.add(dedup_key)
+                    seen_keys.add(action_key)
+                    recommendations.append(norm_rec)
 
-        log.info(f"▶ decision_node complete — {len(recommendations)} recommendations generated")
+            log.info(f"▶ DecisionAgent complete — {len(recommendations)} unique recommendations generated")
 
-    except json.JSONDecodeError as exc:
-        log.error(f"Failed to parse LLM JSON output: {exc}")
-        recommendations = _rule_based_recommendations(state)
-        if not recommendations:
-            recommendations = [{
-                "action": "Manual review required — LLM output parsing failed",
-                "action_type": "alert_admin",
-                "target": {"service": "unknown"},
-                "params": {"channel": "email", "message": "LLM output parsing failed"},
-                "confidence": 0.3,
-                "risk": "low",
-                "savings": 0.0,
-                "justification": "Automated analysis incomplete. Please review portfolio manually.",
-                "run_id": state["run_id"],
-                "status": "pending",
-            }]
-        log.info(f"Fallback recommendations generated: {len(recommendations)}")
-    except Exception as exc:
-        log.error(f"decision_node LLM call failed: {exc}")
-        recommendations = _rule_based_recommendations(state)
+        except json.JSONDecodeError as exc:
+            log.error(f"Failed to parse LLM JSON output: {exc}")
+            recommendations = _rule_based_recommendations(state)
+            if not recommendations:
+                recommendations = [{
+                    "action": "Manual review required — LLM output parsing failed",
+                    "action_type": "alert_admin",
+                    "target": {"service": "unknown"},
+                    "params": {"channel": "email", "message": "LLM output parsing failed"},
+                    "confidence": 0.3,
+                    "risk": "low",
+                    "savings": 0.0,
+                    "justification": "Automated analysis incomplete. Please review portfolio manually.",
+                    "run_id": state["run_id"],
+                    "status": "pending",
+                }]
+            log.info(f"Fallback recommendations generated: {len(recommendations)}")
+        except Exception as exc:
+            log.error(f"DecisionAgent LLM call failed: {exc}")
+            recommendations = _rule_based_recommendations(state)
+            if recommendations:
+                log.info(f"Fallback recommendations generated after LLM failure: {len(recommendations)}")
+
         if recommendations:
-            log.info(f"Fallback recommendations generated after LLM failure: {len(recommendations)}")
+            _persist_recommendations(state["run_id"], recommendations, log)
 
-    if recommendations:
-        _persist_recommendations(state["run_id"], recommendations, log)
-
-    return {"recommendations": recommendations}
+        return {"recommendations": recommendations}

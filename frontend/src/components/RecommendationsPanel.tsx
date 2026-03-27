@@ -5,10 +5,8 @@ export default function RecommendationsPanel(props: {
   recommendations: Recommendation[];
   needsHumanApproval: boolean;
   disabled?: boolean;
-  onApprove: () => void;
-  onReject: () => void;
 }) {
-  const { recommendations, needsHumanApproval, disabled, onApprove, onReject } = props;
+  const { recommendations, needsHumanApproval, disabled } = props;
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 shadow-sm">
@@ -40,9 +38,6 @@ export default function RecommendationsPanel(props: {
               key={`${rec.action}-${rec.savings}`}
               rec={rec}
               disabled={disabled || !needsHumanApproval}
-              showButtons={needsHumanApproval}
-              onApprove={onApprove}
-              onReject={onReject}
             />
           ))
         )}
