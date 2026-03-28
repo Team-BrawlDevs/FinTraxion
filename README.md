@@ -1,6 +1,6 @@
 # FinTraxion — Autonomous SaaS Optimization Agent (Enterprise Edition)
 
-This repository contains a production-grade backend and an internal-only dashboard demonstrating an **Enterprise Multi-Agent SaaS Optimization System**. The system autonomously discovers, analyzes, and executes cost-saving infrastructure and licensing changes. 
+This repository contains a production-grade backend and an internal-only dashboard demonstrating an **Enterprise Multi-Agent SaaS Optimization System**. The system autonomously discovers, analyzes, simulates, and executes cost-saving infrastructure and licensing changes.
 
 Built with:
 - **FastAPI** (API, SSE streaming, Independent Approvals)
@@ -8,59 +8,91 @@ Built with:
 - **Supabase** (Persistence, memory snapshots, highly detailed audit trails)
 - **FAISS** (Vector similarity search for vendor normalization)
 - **Gemini Embeddings & Strong LLMs** (With fallback rules & Graceful Degradation)
-- **Pandas** (Data engineering and usage analysis)
-- **React + TailwindCSS** (Live dashboard, dynamic cost-analysis graphs)
+- **React + TailwindCSS** (Live dashboard, dynamic simulation graphs, tabbed architecture)
 
 ---
 
 ## 🏗 Enterprise Multi-Agent Architecture
 
-The workflow was recently refactored from a linear pipeline into a robust, object-oriented **Multi-Agent Architecture**. 
+The workflow leverages a robust, object-oriented **14-Agent Architecture**, split cleanly into two distinct, high-impact subsystems:
 
-### The Agents:
-1. **`DiscoveryAgent`**: Ingests unstructured financial data (PDFs/CSVs via Supabase Storage).
-2. **`NormalizationAgent`**: Uses FAISS embeddings and fuzzy fallbacks to map messy vendor strings into canonical SaaS entities.
-3. **`UsageAnalysisAgent`**: Synthesizes mock active-seat data and raw pricing relative to the discovered tools.
-4. **`DuplicateDetectionAgent`**: Scans the normalized portfolio for exact duplicates or functional overlapping tools.
-5. **`HistoricalMemoryAgent`**: Fetches long-term execution context from past runs to prevent the LLM from making repetitive mistakes.
-6. **`DecisionAgent`**: The core LLM engine. It ingests the massive **Shared Context** (usage, duplicates, history) and structure-outputs highly specific optimization recommendations.
-7. **`GovernanceAgent`**: Hard-coded deterministic policy layer. It completely decouples risk-evaluation from the LLM, flagging actions as `informational` (low risk) or `require_approval` (medium/high risk).
-8. **`HumanApprovalAgent`**: Intercepts the graph flow. Handles independent dictionary-mapped approvals or a global fallback "Approve All" via the UI.
-9. **`ExecutionAgent`**: Mocks API actions against third-party tools. Incorporates **Graceful Degradation** — if a primary API attempt fails, it automatically spins up a fallback ticket instead of crashing.
-10. **`RecoveryAgent`**: Manages `Tenacity` retry loops for deeper unhandled execution faults.
-11. **`MemoryUpdateAgent`**: Finalizes the graph run, computes the final Before/After cost math, and saves FAISS embeddings for new tools.
+### Subsystem 1: Predictive Cost Simulation (The Digital Twin)
+This subsystem runs invisibly *before* the DecisionAgent can make its final AI Recommendations. Instead of letting the LLM guess what is safe, this engine mathematically forces outcomes.
+1. **`DigitalTwinAgent`**: Synthesizes active SaaS environments into an immutable sandbox model.
+2. **`ScenarioGeneratorAgent`**: Programmatically generates theoretical "What-If" models based on detected structural vulnerabilities.
+3. **`SimulationAgent`**: Mutates the digital twin within isolated memory blocks to test futures.
+4. **`CostModelAgent`**: Deduce the exact projected capital savings recursively tracking "Before vs After" deltas.
+5. **`EvaluationAgent`**: Computes an "execute-ability" score (savings × confidence) and records theoretical outcomes.
+6. **`StrategyAgent`**: Actively constrains the broader orchestrator by injecting the mathematically superior future state directly into the global execution graph.
+
+### Subsystem 2: The SaaS AI Orchestrator
+This is the core pipeline responsible for ingesting live data, reasoning through constraints, flagging operators, and executing infrastructure operations.
+7. **`DiscoveryAgent`**: Ingests unstructured footprint data across Identity Providers.
+8. **`NormalizationAgent`**: Uses FAISS embeddings and fuzzy fallbacks to map messy vendor strings into canonical entities.
+9. **`UsageAnalysisAgent`**: Synthesizes active-seat data arrays to isolate non-utilization limits.
+10. **`DuplicateDetectionAgent`**: Evaluates semantic similarity graphs to identify functionally overlapping tools.
+11. **`HistoricalMemoryAgent`**: Fetches long-term context arrays from Supabase to prevent the LLM from making repetitive decisions over historic timelines.
+12. **`DecisionAgent`**: The core LLM engine. It ingests the combined context alongside the mathematical constraints forced by the *StrategyAgent* to output deterministic optimization recommendations.
+13. **`GovernanceAgent`**: Hard-coded procedural policy layer. It determines routing paths via Savings & Risk heuristic calculations (Auto-Execute vs Human-Approval Required).
+14. **`HumanApprovalAgent`**: Physically suspends LangGraph execution, locking state until administrative override is received via the Enterprise UI.
+15. **`ExecutionAgent`**: Mocks API actions against third-party endpoints. Integrates **Graceful Degradation** for resilient failure handling.
+16. **`RecoveryAgent`**: Processes nested exception recovery strategies via execution loops.
+17. **`MemoryUpdateAgent`**: Finalizes graph termination arrays mapped against Postgres datasets.
 
 ---
 
-## ✨ Key Features & Capabilities
+### Visualization of the Graph Flow
 
-### 1. **Centralized Shared Context**
-Instead of agents just swallowing the explicit output of the previous step, all agents read and write from a massive `AgentState` TypedDict. The `DecisionAgent` aggregates all metrics simultaneously. 
+```mermaid
+graph TD
+    %% Base Flow
+    Start([Graph Start]) --> discovery[DiscoveryAgent]
+    discovery --> normalization[NormalizationAgent]
+    normalization --> usage_analysis[UsageAnalysisAgent]
+    usage_analysis --> duplicate_detection[DuplicateDetectionAgent]
+    duplicate_detection --> historical_memory[HistoricalMemoryAgent]
 
-### 2. **Autonomy Branching via Policy Governance**
-LLMs are creative, which implies risk. The `GovernanceAgent` runs purely deterministic Python logic on the LLM's output. High-risk actions are hard-routed to a human approval queue. Low-risk actions bypass UI interaction entirely and drop straight down to execution or informational view.
+    %% Digital Twin Subsystem
+    subgraph Digital_Twin [Digital Twin Subsystem]
+        historical_memory --> digital_twin[DigitalTwinAgent]
+        digital_twin --> scenario_generator[ScenarioGeneratorAgent]
+        scenario_generator --> simulation_agent[SimulationAgent]
+        simulation_agent --> cost_model[CostModelAgent]
+        cost_model --> evaluation[EvaluationAgent]
+        evaluation --> strategy[StrategyAgent]
+    end
 
-### 3. **Execution Resilience & Fallbacks**
-The `ExecutionAgent` implements a heavy `try_execute_primary()` block. When a mocked failure occurs (via the 30% random failure toggle), it instantly catches the exception and routes to a `try_execute_fallback()` (like sending an Admin Email) to ensure the system never catastrophically crashes.
+    %% Decision & Governance
+    subgraph Decision_Execution [AI Execution Pipeline]
+        strategy --> decision[DecisionAgent]
+        decision --> governance{GovernanceAgent}
+        
+        %% Conditional Routing
+        governance -- "Low Risk & High Savings" --> execution[ExecutionAgent]
+        governance -- "High Risk / Ambiguous" --> human_approval((HumanApprovalAgent))
+        
+        %% Human Loop
+        human_approval -- "Rejected/Paused" --> End([Suspend Graph])
+        human_approval -- "Approved by Admin" --> execution
+        
+        %% Post Execution Routing
+        execution --> outcome{Was API Execution Successful?}
+        outcome -- "Success" --> memory_update[MemoryUpdateAgent]
+        outcome -- "Failure" --> recovery[RecoveryAgent]
+        recovery -- "Retry Logic" --> execution
+    end
 
-### 4. **Enterprise Audit Trails**
-Every step of the way, extremely rich JSON payloads are piped into the Supabase `actions_log`. Every action tracks:
-- `agent_name`
-- `action_key` (Idempotency Trace ID)
-- `decision_reason`
-- `risk_level`
-- `actual_savings`
-
-### 5. **Robust Duplicate Filtering**
-Recommendations are passed through a unique signature generator (`action_type` + `target_service_string`) inside the `DecisionAgent` to guarantee the system never presents redundant recommendations to the operator.
+    memory_update --> TotalEnd([Graph Finish])
+```
 
 ---
 
 ## 💻 Frontend (Internal Control Panel)
 
-- **Agent Workflow UI**: Live streaming visualization of exactly which agents are currently active and completing tasks via Server-Sent Events (SSE).
-- **Global & Independent Approvals**: Unified Human-in-the-Loop review block capable of accepting operator notes. 
-- **Live Cost Impact Analysis**: Animated Tailwind CSS bar charts comparing the exact baseline **Before Optimization** cost against the projected **After Optimization** savings.
+The React Enterprise UI has been refactored into cleanly isolated environments:
+
+- **AI Orchestrator Pipeline Tab**: Real-time execution visualization, execution logs, human-approval resolution queues, and active infrastructure mapping. 
+- **Digital Twin Simulations Tab**: A dedicated analytic sandbox to review the exact "What-if" mathematical projections that the system processed. Includes dynamically rendering CSS-native *Before vs After* horizontal bar graphs to definitively prove operational feasibility.
 
 ---
 
@@ -78,8 +110,10 @@ Optional:
 - `SIMULATE_FAILURES` (default `true` — controls the 30% execution-agent failure rate)
 
 ### 2) Bootstrap Database
-Run the seeder to prepare your mock CSV and PDF documents in Supabase storage:
-`python backend/scripts/seed_supabase.py`
+Run the schema seeder to prepare your Mock Database in Supabase:
+```bash
+python backend/scripts/seed_supabase.py
+```
 
 ### 3) Start the System
 **Backend FastAPI Server:**
@@ -96,29 +130,3 @@ npm install
 npm run dev
 ```
 Dashboard will be available at: `http://localhost:5173`
-
----
-
-## 📡 API Endpoints
-
-### `POST /run`
-Instantiates the graph in a background thread and returns a `run_id` for tracking.
-
-### `GET /stream/{run_id}`
-Connects to the Server-Sent Event (SSE) stream to listen for `node_complete` and `awaiting_human_approval` events.
-
-### `POST /approve`
-Injects independent or global operator decisions back into the stalled LangGraph state.
-```json
-{
-  "run_id": "uuid",
-  "decision": "approved",
-  "decisions": {
-    "Specific Action Item Text": "rejected"
-  },
-  "notes": "Operator override context"
-}
-```
-
-### `GET /status?run_id=...`
-Polls the Supabase cache for an aggregate view of all historical context, structured recommendations, and execution audit logs.
