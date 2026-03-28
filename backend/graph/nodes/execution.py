@@ -128,6 +128,7 @@ class ExecutionAgent:
             log.info(f"No pending actions to execute (outcome={outcome})")
             return {
                 "execution_logs": logs,
+                "execution_results": list(state.get("execution_results", [])),
                 "errors": errors,
                 "context_memory": {
                     **state.get("context_memory", {}),
@@ -136,6 +137,7 @@ class ExecutionAgent:
             }
 
         current_failed = False
+        execution_results: list[dict] = list(state.get("execution_results", []))
 
         for rec in filtered_to_execute:
             action = rec.get("action", "Unknown")
@@ -210,12 +212,26 @@ class ExecutionAgent:
 
             logs.append(log_entry)
 
+            pred = float(rec.get("savings", 0) or 0)
+            actual = float((log_entry.get("details") or {}).get("actual_savings", 0) or 0)
+            execution_results.append(
+                {
+                    "action": action,
+                    "action_key": action_key,
+                    "predicted_savings": pred,
+                    "actual_savings": actual,
+                    "status": log_entry.get("status"),
+                    "variance_vs_predicted": round(pred - actual, 2),
+                }
+            )
+
         unresolved_failed = any(e.get("status") == "failed" for e in logs)
         outcome = "failure" if unresolved_failed or current_failed else "success"
         log.info(f"▶ ExecutionAgent complete — outcome={outcome}")
 
         return {
             "execution_logs": logs,
+            "execution_results": execution_results,
             "errors": errors,
             "context_memory": {
                 **state.get("context_memory", {}),

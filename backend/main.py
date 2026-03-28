@@ -168,6 +168,11 @@ async def run_workflow():
         "extracted_entities": [],
         "graph_context": {},
         "graph_alerts": [],
+        "baseline_snapshot": {},
+        "execution_results": [],
+        "impact_metrics": {},
+        "impact_audit": [],
+        "learning_update": {},
         "recommendations": [],
         "governance_flags": [],
         "approved_actions": [],
@@ -259,6 +264,11 @@ async def get_status(run_id: str = Query(..., description="run_id from POST /run
         "graph_context": state.get("graph_context", {}),
         "graph_alerts": state.get("graph_alerts", []),
         "knowledge_graph": state.get("knowledge_graph", {}),
+        "baseline_snapshot": state.get("baseline_snapshot", {}),
+        "execution_results": state.get("execution_results", []),
+        "impact_metrics": state.get("impact_metrics", {}),
+        "impact_audit": state.get("impact_audit", []),
+        "learning_update": state.get("learning_update", {}),
     }
 
 

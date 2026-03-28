@@ -258,6 +258,7 @@ class DecisionAgent:
 
         # Explicitly build shared context for LLM
         context = {
+            "baseline_snapshot": state.get("baseline_snapshot", {}),
             "duplicate_candidates": duplicates[:10],  # top 10 to stay within token budget
             "services_summary": [
                 {

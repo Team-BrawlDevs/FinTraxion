@@ -31,6 +31,8 @@ const EMPTY_STATUS: StatusPayload = {
   context_memory: {},
   graph_context: {},
   graph_alerts: [],
+  baseline_snapshot: {},
+  execution_results: [],
 };
 
 type UiRunState = "Idle" | "Running" | "Completed" | "Error";
@@ -39,7 +41,9 @@ type TabState = "workflow" | "causal" | "digital_twin";
 export default function App() {
   const [uiState, setUiState] = useState<UiRunState>("Idle");
   const [currentTab, setCurrentTab] = useState<TabState>("workflow");
-  const [apiBase] = useState<string>(localStorage.getItem("ft_apiBase") || "http://localhost:8000");
+  const [apiBase] = useState<string>(
+    localStorage.getItem("ft_apiBase") || "http://localhost:8000",
+  );
   const [runId, setRunId] = useState<string>("");
   const [lastEvent, setLastEvent] = useState<AgentEvent | null>(null);
 
@@ -86,10 +90,14 @@ export default function App() {
     setStatus(EMPTY_STATUS);
   }
 
-  const duplicateCandidates = (status.duplicate_candidates || []) as DuplicateCandidate[];
+  const duplicateCandidates = (status.duplicate_candidates ||
+    []) as DuplicateCandidate[];
   const recommendations = (status.recommendations || []) as Recommendation[];
   const executionLogs = (status.execution_logs || []) as ExecutionLog[];
-  const services = useMemo(() => buildMockServices(duplicateCandidates), [duplicateCandidates]);
+  const services = useMemo(
+    () => buildMockServices(duplicateCandidates),
+    [duplicateCandidates],
+  );
 
   function safeSetCompleted(node: string) {
     setCompletedNodes((prev) => {
@@ -110,7 +118,8 @@ export default function App() {
     if (!s) return;
     setStatus(s);
 
-    const paused = s.human_feedback === "__paused__" || s.status === "awaiting_approval";
+    const paused =
+      s.human_feedback === "__paused__" || s.status === "awaiting_approval";
     setNeedsHumanApproval(!!paused);
 
     if (s.status === "completed") setUiState("Completed");
@@ -132,8 +141,14 @@ export default function App() {
           if (
             node === "duplicate_detection" ||
             node === "kg_context" ||
+            node === "baseline" ||
             node === "decision" ||
-            node === "execution"
+            node === "execution" ||
+            node === "impact_analysis" ||
+            node === "roi" ||
+            node === "audit" ||
+            node === "learning" ||
+            node === "memory_update"
           ) {
             refreshStatus(node, runIdToConnect).catch(() => {});
           }
@@ -200,9 +215,12 @@ export default function App() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Autonomous Cost Intelligence System</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight">
+              Autonomous Cost Intelligence System
+            </h1>
             <p className="text-xs text-slate-500 mt-2 max-w-2xl">
-              This enterprise control panel visualizes discovery, analysis, decision-making, and execution with human-in-the-loop governance.
+              This enterprise control panel visualizes discovery, analysis,
+              decision-making, and execution with human-in-the-loop governance.
             </p>
           </div>
 
@@ -261,10 +279,13 @@ export default function App() {
               }`}
             >
               Causal analysis
-              {(status.graph_context as { root_cause?: string } | undefined)?.root_cause ? (
+              {(status.graph_context as { root_cause?: string } | undefined)
+                ?.root_cause ? (
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                    currentTab === "causal" ? "bg-violet-500/20 text-violet-200" : "bg-slate-800 text-slate-300"
+                    currentTab === "causal"
+                      ? "bg-violet-500/20 text-violet-200"
+                      : "bg-slate-800 text-slate-300"
                   }`}
                 >
                   KG
@@ -280,11 +301,14 @@ export default function App() {
               }`}
             >
               Digital Twin Simulations
-              {status.simulation_results && status.simulation_results.length > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${currentTab === "digital_twin" ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-300'}`}>
-                  {status.simulation_results.length}
-                </span>
-              )}
+              {status.simulation_results &&
+                status.simulation_results.length > 0 && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${currentTab === "digital_twin" ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-300"}`}
+                  >
+                    {status.simulation_results.length}
+                  </span>
+                )}
             </button>
           </div>
         </div>
@@ -293,14 +317,22 @@ export default function App() {
           <div className="animate-in fade-in duration-300">
             <CausalAnalysisPanel
               recommendations={recommendations}
-              graphContext={(status.graph_context as GraphContextPayload) || null}
-              graphAlerts={(status.graph_alerts as Array<Record<string, unknown>>) || []}
+              graphContext={
+                (status.graph_context as GraphContextPayload) || null
+              }
+              graphAlerts={
+                (status.graph_alerts as Array<Record<string, unknown>>) || []
+              }
             />
           </div>
         ) : currentTab === "workflow" ? (
           <div className="space-y-4 animate-in fade-in duration-300">
-            <AgentWorkflow lastEvent={lastEvent} completedNodes={completedNodes} activeNode={activeNode} />
-            
+            <AgentWorkflow
+              lastEvent={lastEvent}
+              completedNodes={completedNodes}
+              activeNode={activeNode}
+            />
+
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <DetectedServicesPanel services={services} />
               <DuplicateDetectionPanel candidates={duplicateCandidates} />
@@ -315,8 +347,13 @@ export default function App() {
 
               {needsHumanApproval ? (
                 <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-                  <div className="text-sm font-semibold text-yellow-200">Human approval required</div>
-                  <div className="text-xs text-yellow-100 mt-1">Run-level approval affects all recommendations produced in the current graph execution.</div>
+                  <div className="text-sm font-semibold text-yellow-200">
+                    Human approval required
+                  </div>
+                  <div className="text-xs text-yellow-100 mt-1">
+                    Run-level approval affects all recommendations produced in
+                    the current graph execution.
+                  </div>
                   <label className="block mt-3 text-xs text-slate-200">
                     Operator Notes (optional)
                     <textarea
@@ -326,7 +363,7 @@ export default function App() {
                       placeholder="e.g. Approved for execution during change window"
                     />
                   </label>
-                
+
                   <div className="mt-4 flex flex-wrap gap-3">
                     <button
                       onClick={() => onApprove("approved")}
@@ -348,8 +385,15 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ExecutionLogsPanel logs={executionLogs} />
-              <ImpactSummary contextMemory={status.context_memory} />
+              <ExecutionLogsPanel
+                logs={executionLogs}
+                executionResults={status.execution_results}
+              />
+              <ImpactSummary
+                contextMemory={status.context_memory || {}}
+                impactMetrics={status.impact_metrics}
+                learningUpdate={status.learning_update}
+              />
             </div>
           </div>
         ) : currentTab === "digital_twin" ? (
@@ -361,4 +405,3 @@ export default function App() {
     </div>
   );
 }
-

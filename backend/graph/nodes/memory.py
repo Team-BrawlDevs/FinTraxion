@@ -33,6 +33,9 @@ class MemoryUpdateAgent:
             memory_set(f"run:{run_id}:recommendations", state.get("recommendations", []))
             memory_set(f"run:{run_id}:human_feedback", state.get("human_feedback"))
             memory_set(f"run:{run_id}:execution_logs", state.get("execution_logs", []))
+            memory_set(f"run:{run_id}:impact_metrics", state.get("impact_metrics", {}))
+            memory_set(f"run:{run_id}:execution_results", state.get("execution_results", []))
+            memory_set(f"run:{run_id}:baseline_snapshot", state.get("baseline_snapshot", {}))
             memory_set(f"run:{run_id}:status", "completed")
             log.info("  Persisted run summary to Supabase memory")
         except Exception as exc:
@@ -65,9 +68,15 @@ class MemoryUpdateAgent:
             log.warning(f"  FAISS update failed: {exc}")
 
         # ── 3. Update context_memory snapshot ────────────────────────────────────
-        total_savings = sum(r.get("savings", 0) for r in state.get("recommendations", []))
-        total_cost_before = sum(u.get("monthly_cost", 0) for u in state.get("usage_data", []))
-        total_cost_after = max(0.0, total_cost_before - total_savings)
+        im = state.get("impact_metrics") or {}
+        if im.get("before_cost") is not None:
+            total_cost_before = float(im.get("before_cost", 0) or 0)
+            total_cost_after = float(im.get("after_cost", 0) or 0)
+            total_savings = float(im.get("savings", 0) or 0)
+        else:
+            total_savings = sum(r.get("savings", 0) for r in state.get("recommendations", []))
+            total_cost_before = sum(u.get("monthly_cost", 0) for u in state.get("usage_data", []))
+            total_cost_after = max(0.0, total_cost_before - total_savings)
 
         context_memory = {
             **state.get("context_memory", {}),
@@ -76,6 +85,7 @@ class MemoryUpdateAgent:
             "total_savings": round(total_savings, 2),
             "total_cost_before": round(total_cost_before, 2),
             "total_cost_after": round(total_cost_after, 2),
+            "impact_metrics": im,
             "approved": state.get("human_feedback") == "approved",
             "last_execution_outcome": state.get("context_memory", {}).get("last_execution_outcome", "success")
         }

@@ -18,8 +18,8 @@ Flow:
   human_approval → [__paused__] → END (wait for /approve)
   human_approval → [approved]   → execution
   
-  execution → [success/fallback_success] → memory_update → END
-  execution → [total failure]            → recovery → execution  (loop, max 3)
+  execution → [failure & retries left] → recovery → execution
+  execution → [else] → impact_analysis → roi → audit → learning → memory_update → END
 """
 from __future__ import annotations
 
@@ -48,6 +48,11 @@ from graph.nodes.kg_graph_builder import GraphBuilderAgent
 from graph.nodes.kg_relationship import RelationshipAgent
 from graph.nodes.kg_causality import CausalityAgent
 from graph.nodes.kg_context import ContextAgent
+from graph.nodes.baseline_agent import BaselineAgent
+from graph.nodes.impact_analysis import ImpactAnalysisAgent
+from graph.nodes.roi_agent import ROIAgent
+from graph.nodes.audit_agent import AuditAgent
+from graph.nodes.learning_agent import LearningAgent
 
 # ── Conditional edge functions ────────────────────────────────────────────────
 
@@ -72,12 +77,12 @@ def route_after_human(state: AgentState) -> str:
 
 
 def route_after_execution(state: AgentState) -> str:
-    """Success → memory_update. Failure → recovery (max 3 retries)."""
+    """Failure → recovery (max 3 retries). Else → Quantifiable Impact Engine → memory_update."""
     outcome = state.get("context_memory", {}).get("last_execution_outcome", "success")
     retry_count = state.get("retry_count", 0)
     if outcome == "failure" and retry_count < 3:
         return "recovery"
-    return "memory_update"
+    return "impact_analysis"
 
 
 def route_after_recovery(state: AgentState) -> str:
@@ -117,6 +122,11 @@ def build_graph() -> StateGraph:
     workflow.add_node("human_approval", HumanApprovalAgent())
     workflow.add_node("execution", ExecutionAgent())
     workflow.add_node("recovery", RecoveryAgent())
+    workflow.add_node("baseline", BaselineAgent())
+    workflow.add_node("impact_analysis", ImpactAnalysisAgent())
+    workflow.add_node("roi", ROIAgent())
+    workflow.add_node("audit", AuditAgent())
+    workflow.add_node("learning", LearningAgent())
     workflow.add_node("memory_update", MemoryUpdateAgent())
 
     # Linear pipeline edges
@@ -134,7 +144,8 @@ def build_graph() -> StateGraph:
     
     # Wire the simulation subsystem inline (uses knowledge_graph from state)
     workflow.add_edge("kg_context", "digital_twin")
-    workflow.add_edge("digital_twin", "scenario_generator")
+    workflow.add_edge("digital_twin", "baseline")
+    workflow.add_edge("baseline", "scenario_generator")
     workflow.add_edge("scenario_generator", "simulation")
     workflow.add_edge("simulation", "cost_model")
     workflow.add_edge("cost_model", "evaluation")
@@ -163,13 +174,13 @@ def build_graph() -> StateGraph:
         },
     )
 
-    # Conditional: execution → recovery OR memory_update
+    # Conditional: execution → recovery OR impact pipeline
     workflow.add_conditional_edges(
         "execution",
         route_after_execution,
         {
             "recovery": "recovery",
-            "memory_update": "memory_update",
+            "impact_analysis": "impact_analysis",
         },
     )
 
@@ -181,6 +192,11 @@ def build_graph() -> StateGraph:
             "execution": "execution",
         },
     )
+
+    workflow.add_edge("impact_analysis", "roi")
+    workflow.add_edge("roi", "audit")
+    workflow.add_edge("audit", "learning")
+    workflow.add_edge("learning", "memory_update")
 
     # Terminal edge
     workflow.add_edge("memory_update", END)

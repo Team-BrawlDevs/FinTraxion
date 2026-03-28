@@ -8,10 +8,16 @@ const STEPS = [
   { node: "duplicate_detection", label: "Detection" },
   { node: "kg_context", label: "Knowledge Graph" },
   { node: "digital_twin", label: "Digital Twin" },
+  { node: "baseline", label: "Baseline" },
   { node: "evaluation", label: "Simulation" },
   { node: "decision", label: "Decision" },
   { node: "human_approval", label: "Approval" },
   { node: "execution", label: "Execution" },
+  { node: "impact_analysis", label: "Impact" },
+  { node: "roi", label: "ROI" },
+  { node: "audit", label: "Audit" },
+  { node: "learning", label: "Learning" },
+  { node: "memory_update", label: "Memory" },
 ];
 
 export default function AgentWorkflow(props: {
@@ -29,7 +35,7 @@ export default function AgentWorkflow(props: {
         <div>
           <h2 className="text-base font-bold text-sky-200">Agent Workflow</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Autonomous discovery → analysis → decisioning → human approval → execution.
+            Discovery → knowledge graph → simulation → decision → execution → quantifiable impact → memory.
           </p>
         </div>
 

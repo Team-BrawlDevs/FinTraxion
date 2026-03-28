@@ -98,6 +98,20 @@ export type SimulationResult = {
   original_baseline_cost?: number;
 };
 
+/** Quantifiable Impact Engine aggregate (backend `impact_metrics`) */
+export type ImpactMetrics = {
+  before_cost?: number;
+  after_cost?: number;
+  savings?: number;
+  predicted_savings?: number;
+  variance_predicted_vs_actual?: number;
+  efficiency_gain?: number;
+  roi?: number;
+  annualized_savings?: number;
+  implementation_cost_estimate?: number;
+  execution_result_count?: number;
+};
+
 export type StatusPayload = {
   run_id: string;
   status: string;
@@ -113,6 +127,11 @@ export type StatusPayload = {
   graph_context?: GraphContextPayload;
   graph_alerts?: Array<Record<string, unknown>>;
   knowledge_graph?: Record<string, unknown>;
+  baseline_snapshot?: Record<string, unknown>;
+  execution_results?: Array<Record<string, unknown>>;
+  impact_metrics?: ImpactMetrics;
+  impact_audit?: Array<Record<string, unknown>>;
+  learning_update?: Record<string, unknown>;
 
   // some runs may include extra keys; keep it flexible
   [k: string]: any;

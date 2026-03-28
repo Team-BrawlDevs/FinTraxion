@@ -35,6 +35,11 @@ class AgentState(TypedDict):
     # Execution
     approved_actions: list[dict]     # HumanApprovalAgent output
     execution_logs: list[dict]       # ExecutionAgent & RecoveryAgent output
+    execution_results: list[dict]    # Normalized per-action outcomes (predicted vs actual) for Impact Engine
+    baseline_snapshot: dict          # BaselineAgent: pre-optimization cost snapshot
+    impact_metrics: dict             # Quantifiable Impact Engine aggregate (ROI, efficiency, savings)
+    impact_audit: list[dict]         # AuditAgent: trace records for this run
+    learning_update: dict            # LearningAgent: feedback signals for future runs
 
     # Error handling
     errors: list[str]
