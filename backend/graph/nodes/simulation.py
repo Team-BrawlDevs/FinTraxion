@@ -4,10 +4,38 @@ simulation_agent — purely functional sandbox for executing what-if states.
 from __future__ import annotations
 
 import copy
+
 from graph.state import AgentState
+from services.knowledge_graph_core import dict_to_graph
 from utils.logging_utils import get_logger
 
 LOGGER_NAME = "simulation_agent"
+
+
+def _cascade_for_service(G, target_label: str) -> list[str]:
+    """One-hop dependents on depends_on edges for scenario cascade modeling."""
+    if not target_label or G.number_of_nodes() == 0:
+        return []
+    nid = None
+    for n, d in G.nodes(data=True):
+        if d.get("kind") == "service" and d.get("label") == target_label:
+            nid = n
+            break
+    if nid is None:
+        return []
+    out: list[str] = []
+    for _, succ, _k, data in G.out_edges(nid, keys=True, data=True):
+        if data.get("relation") == "depends_on":
+            lab = G.nodes[succ].get("label", succ)
+            if lab not in out:
+                out.append(str(lab))
+    for pred, _succ, _k, data in G.in_edges(nid, keys=True, data=True):
+        if data.get("relation") == "depends_on":
+            lab = G.nodes[pred].get("label", pred)
+            if lab not in out:
+                out.append(str(lab))
+    return out[:12]
+
 
 class SimulationAgent:
     """
@@ -21,6 +49,7 @@ class SimulationAgent:
         scenarios = state.get("generated_scenarios", [])
         digital_twin = state.get("digital_twin", {})
         baseline_services = digital_twin.get("services", {})
+        G = dict_to_graph(state.get("knowledge_graph") or {})
         
         simulated_results = []
         
@@ -52,10 +81,16 @@ class SimulationAgent:
                         current_price = mutated_twin[target]["price_per_seat"]
                         mutated_twin[target]["price_per_seat"] = max(0.0, current_price * 0.6)
                         
+                cascade = _cascade_for_service(G, str(target) if target else "")
+
                 # 3. Store the output map against the scenario UUID
                 simulated_results.append({
                     "scenario": scenario,
-                    "post_mutation_twin": mutated_twin
+                    "post_mutation_twin": mutated_twin,
+                    "cascade_impact": {
+                        "dependent_services": cascade,
+                        "notes": "Derived from knowledge_graph depends_on / overlap neighborhood.",
+                    },
                 })
                 
             except Exception as e:

@@ -47,6 +47,9 @@ Each recommendation MUST be a JSON object with EXACTLY these fields:
 - risk: one of "low", "medium", or "high"
 - savings: estimated monthly savings in USD (float)
 - justification: 1-2 sentence explanation citing the usage data or historical context
+- cause_explanation: optional string tying the action to graph_context root causes (portfolio inefficiency / overlap)
+
+Use graph_context.root_cause and graph_context.causal_insights when explaining WHY an inefficiency exists.
 
 Return ONLY a valid JSON array, no markdown, no explanation outside the JSON."""
 
@@ -97,21 +100,24 @@ def _rule_based_recommendations(state: AgentState) -> list[dict]:
             risk = "medium"
             confidence = 0.65
 
-        recommendations.append({
-            "action": action,
-            "action_type": action_type,
-            "target": target,
-            "params": params,
-            "confidence": confidence,
-            "risk": risk,
-            "savings": savings,
-            "justification": (
-                f"Auto-generated fallback recommendation from {ctype} detection; "
-                f"estimated monthly savings based on the lower duplicate/overlap cost."
-            ),
-            "run_id": state["run_id"],
-            "status": "pending",
-        })
+        recommendations.append(
+            _normalize_recommendation(
+                state,
+                {
+                    "action": action,
+                    "action_type": action_type,
+                    "target": target,
+                    "params": params,
+                    "confidence": confidence,
+                    "risk": risk,
+                    "savings": savings,
+                    "justification": (
+                        f"Auto-generated fallback recommendation from {ctype} detection; "
+                        f"estimated monthly savings based on the lower duplicate/overlap cost."
+                    ),
+                },
+            )
+        )
 
     return recommendations
 
@@ -130,6 +136,58 @@ def _infer_action_type(action: str) -> str:
     return "alert_admin"
 
 
+def _service_from_target(target: dict) -> str | None:
+    if not isinstance(target, dict):
+        return None
+    return (
+        target.get("service")
+        or target.get("service_a")
+        or target.get("service_b")
+    )
+
+
+def _enrich_with_graph_context(state: AgentState, rec: dict) -> dict:
+    """Audit fields: reason, source, cause_explanation, causal_impact — never drops LLM fields."""
+    gc = state.get("graph_context") or {}
+    hints = gc.get("per_recommendation_hints") or []
+    svc = _service_from_target(rec.get("target") or {})
+    reason: str | None = None
+    source = "LLM + simulation"
+    if svc:
+        for h in hints:
+            hs = h.get("service")
+            if hs and str(hs).lower() == str(svc).lower():
+                reason = h.get("reason")
+                source = h.get("source", "Graph analysis")
+                break
+    if not reason and svc:
+        for ins in gc.get("causal_insights") or []:
+            if str(ins.get("service", "")).lower() == str(svc).lower():
+                reason = ins.get("statement")
+                source = "Graph analysis"
+                break
+    root = (gc.get("root_cause") or "").strip()
+    if not reason and root and svc and str(svc).lower() in root.lower():
+        reason = root[:320]
+        source = "Graph analysis"
+    if not reason and root:
+        reason = root[:320]
+        source = "Graph analysis"
+    if not reason:
+        reason = (rec.get("justification") or "Heuristic portfolio review.")[:320]
+        source = "Usage heuristics"
+
+    out = dict(rec)
+    out["reason"] = reason
+    out["source"] = source
+    out["cause_explanation"] = rec.get("cause_explanation") or root or out.get("justification", "")[:400]
+    out["causal_impact"] = {
+        "affected_services": gc.get("affected_services", []),
+        "risk_factors": (gc.get("risk_factors") or [])[:10],
+    }
+    return out
+
+
 def _normalize_recommendation(state: AgentState, rec: dict) -> dict:
     """Ensure all required recommendation fields exist and are well-formed."""
     action = rec.get("action", "Manual review required")
@@ -141,7 +199,7 @@ def _normalize_recommendation(state: AgentState, rec: dict) -> dict:
     if not isinstance(params, dict):
         params = {}
 
-    return {
+    base = {
         "action": action,
         "action_type": action_type,
         "target": target,
@@ -153,19 +211,28 @@ def _normalize_recommendation(state: AgentState, rec: dict) -> dict:
         "run_id": state["run_id"],
         "status": "pending",
     }
+    if rec.get("cause_explanation"):
+        base["cause_explanation"] = rec["cause_explanation"]
+    return _enrich_with_graph_context(state, base)
 
 
 def _persist_recommendations(run_id: str, recommendations: list[dict], log) -> None:
     """Persist recommendations to Supabase recommendations table."""
     for rec in recommendations:
         try:
+            j = rec.get("justification", "") or ""
+            reason = rec.get("reason")
+            src = rec.get("source")
+            if reason or src:
+                j = f"{j}\n[Causal] {reason or ''} (source: {src or 'n/a'})".strip()
+
             insert_row("recommendations", {
                 "run_id": run_id,
                 "action": rec.get("action", ""),
                 "risk": rec.get("risk", "medium"),
                 "confidence": rec.get("confidence", 0.7),
                 "savings": rec.get("savings", 0.0),
-                "justification": rec.get("justification", ""),
+                "justification": j,
                 "status": rec.get("status", "pending"),
             })
         except Exception as db_exc:
@@ -218,7 +285,7 @@ CRITICAL: You are receiving exact predictions from a Digital Twin simulation eng
 Use the `recommended_strategy` and `simulation_results` to guarantee your recommendations are highly accurate and predictive, rather than just reactive guessing.
 
 Return a JSON array of 3-5 recommendations.
-Each item must include: action, action_type, target, params, confidence, risk, savings, justification."""
+Each item must include: action, action_type, target, params, confidence, risk, savings, justification, and optionally cause_explanation."""
 
         recommendations: list[dict] = []
 
@@ -261,18 +328,21 @@ Each item must include: action, action_type, target, params, confidence, risk, s
             log.error(f"Failed to parse LLM JSON output: {exc}")
             recommendations = _rule_based_recommendations(state)
             if not recommendations:
-                recommendations = [{
-                    "action": "Manual review required — LLM output parsing failed",
-                    "action_type": "alert_admin",
-                    "target": {"service": "unknown"},
-                    "params": {"channel": "email", "message": "LLM output parsing failed"},
-                    "confidence": 0.3,
-                    "risk": "low",
-                    "savings": 0.0,
-                    "justification": "Automated analysis incomplete. Please review portfolio manually.",
-                    "run_id": state["run_id"],
-                    "status": "pending",
-                }]
+                recommendations = [
+                    _normalize_recommendation(
+                        state,
+                        {
+                            "action": "Manual review required — LLM output parsing failed",
+                            "action_type": "alert_admin",
+                            "target": {"service": "unknown"},
+                            "params": {"channel": "email", "message": "LLM output parsing failed"},
+                            "confidence": 0.3,
+                            "risk": "low",
+                            "savings": 0.0,
+                            "justification": "Automated analysis incomplete. Please review portfolio manually.",
+                        },
+                    )
+                ]
             log.info(f"Fallback recommendations generated: {len(recommendations)}")
         except Exception as exc:
             log.error(f"DecisionAgent LLM call failed: {exc}")

@@ -5,6 +5,7 @@ Creates the baseline state for the predictive simulation engine.
 from __future__ import annotations
 
 from graph.state import AgentState
+from services.knowledge_graph_core import dict_to_graph, summarize_graph
 from utils.logging_utils import get_logger
 
 LOGGER_NAME = "digital_twin_agent"
@@ -50,6 +51,25 @@ class DigitalTwinAgent:
                 "service_count": len(services_map)
             }
         }
+
+        # Knowledge graph overlay: dependency / overlap neighborhood for simulation
+        kg_payload = state.get("knowledge_graph") or {}
+        G = dict_to_graph(kg_payload)
+        twin_kg = {
+            "summary": summarize_graph(kg_payload),
+            "dependency_edges": [],
+        }
+        for u, v, key, data in G.edges(keys=True, data=True):
+            rel = data.get("relation", "")
+            if rel in ("depends_on", "overlaps_with"):
+                twin_kg["dependency_edges"].append(
+                    {
+                        "from": G.nodes[u].get("label", u),
+                        "to": G.nodes[v].get("label", v),
+                        "relation": rel,
+                    }
+                )
+        digital_twin["knowledge_graph"] = twin_kg
 
         log.info(f"▶ DigitalTwinAgent complete — baseline cost: ${total_baseline_cost:,.2f} across {len(services_map)} services.")
         

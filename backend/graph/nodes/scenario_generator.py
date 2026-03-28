@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import random
 from graph.state import AgentState
+from services.knowledge_graph_core import dict_to_graph
 from utils.logging_utils import get_logger
 
 LOGGER_NAME = "scenario_generator_agent"
@@ -21,6 +22,8 @@ class ScenarioGeneratorAgent:
         candidates = state.get("duplicate_candidates", [])
         digital_twin = state.get("digital_twin", {})
         services_map = digital_twin.get("services", {})
+        kg = state.get("knowledge_graph") or {}
+        G = dict_to_graph(kg)
         
         scenarios = []
         
@@ -72,6 +75,24 @@ class ScenarioGeneratorAgent:
             "target": "Slack",
             "confidence_weight": 0.50
         })
+
+        # Scenario 4: Graph-informed — services with overlap edges (cascade consolidation)
+        for u, v, key, data in G.edges(keys=True, data=True):
+            if data.get("relation") != "overlaps_with":
+                continue
+            la = G.nodes[u].get("label") if u in G else None
+            lb = G.nodes[v].get("label") if v in G else None
+            if not la or not lb:
+                continue
+            if la in services_map and lb in services_map:
+                scenarios.append({
+                    "id": f"sc_kg_overlap_{la}_{lb}".replace(" ", "_").lower()[:48],
+                    "name": f"Graph overlap: reduce redundant spend between {la} and {lb}",
+                    "type": "remove_service",
+                    "target": lb,
+                    "confidence_weight": 0.72,
+                    "graph_rationale": "overlap_edge",
+                })
 
         # Limit to top 5 scenarios as per enterprise architecture limit to save simulation CPU
         scenarios = scenarios[:5]

@@ -1,10 +1,12 @@
-import type { AgentEvent, WorkflowNode } from "@/lib/types";
+import type { AgentEvent } from "@/lib/types";
 import AgentStep from "./AgentStep";
 
 const STEPS = [
   { node: "discovery", label: "Discovery" },
   { node: "normalization", label: "Normalization" },
+  { node: "enrichment", label: "Usage" },
   { node: "duplicate_detection", label: "Detection" },
+  { node: "kg_context", label: "Knowledge Graph" },
   { node: "digital_twin", label: "Digital Twin" },
   { node: "evaluation", label: "Simulation" },
   { node: "decision", label: "Decision" },

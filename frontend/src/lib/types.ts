@@ -46,6 +46,23 @@ export type Recommendation = {
   justification: string;
   status: string;
   run_id: string;
+  /** Graph / heuristic audit fields */
+  reason?: string;
+  source?: string;
+  cause_explanation?: string;
+  causal_impact?: {
+    affected_services?: string[];
+    risk_factors?: string[];
+  };
+};
+
+export type GraphContextPayload = {
+  root_cause?: string;
+  affected_services?: string[];
+  risk_factors?: string[];
+  causal_insights?: Array<{ service?: string; statement?: string; severity?: string }>;
+  graph_summary?: { node_count?: number; edge_count?: number };
+  graph_node_sample?: string[];
 };
 
 export type ExecutionLog = {
@@ -93,6 +110,9 @@ export type StatusPayload = {
   execution_logs: ExecutionLog[];
   simulation_results?: SimulationResult[];
   context_memory: any;
+  graph_context?: GraphContextPayload;
+  graph_alerts?: Array<Record<string, unknown>>;
+  knowledge_graph?: Record<string, unknown>;
 
   // some runs may include extra keys; keep it flexible
   [k: string]: any;

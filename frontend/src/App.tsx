@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentEvent, DuplicateCandidate, Recommendation, ExecutionLog, StatusPayload } from "@/lib/types";
+import type {
+  AgentEvent,
+  DuplicateCandidate,
+  Recommendation,
+  ExecutionLog,
+  StatusPayload,
+  GraphContextPayload,
+} from "@/lib/types";
 import { approveRun, connectStream, fetchStatus, startRun } from "@/lib/api";
 import { buildMockServices } from "@/lib/mock";
 import AgentWorkflow from "@/components/AgentWorkflow";
@@ -9,6 +16,7 @@ import RecommendationsPanel from "@/components/RecommendationsPanel";
 import ExecutionLogsPanel from "@/components/ExecutionLogsPanel";
 import ImpactSummary from "@/components/ImpactSummary";
 import DigitalTwinPage from "@/components/DigitalTwinPage";
+import CausalAnalysisPanel from "@/components/CausalAnalysisPanel";
 
 const EMPTY_STATUS: StatusPayload = {
   run_id: "",
@@ -21,10 +29,12 @@ const EMPTY_STATUS: StatusPayload = {
   duplicate_candidates: [],
   execution_logs: [],
   context_memory: {},
+  graph_context: {},
+  graph_alerts: [],
 };
 
 type UiRunState = "Idle" | "Running" | "Completed" | "Error";
-type TabState = "workflow" | "digital_twin";
+type TabState = "workflow" | "causal" | "digital_twin";
 
 export default function App() {
   const [uiState, setUiState] = useState<UiRunState>("Idle");
@@ -119,7 +129,12 @@ export default function App() {
           setActiveNode(node);
           safeSetCompleted(node);
 
-          if (node === "duplicate_detection" || node === "decision" || node === "execution") {
+          if (
+            node === "duplicate_detection" ||
+            node === "kg_context" ||
+            node === "decision" ||
+            node === "execution"
+          ) {
             refreshStatus(node, runIdToConnect).catch(() => {});
           }
         }
@@ -238,6 +253,25 @@ export default function App() {
               SaaS Optimization Agent
             </button>
             <button
+              onClick={() => setCurrentTab("causal")}
+              className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+                currentTab === "causal"
+                  ? "border-violet-500 text-violet-300"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Causal analysis
+              {(status.graph_context as { root_cause?: string } | undefined)?.root_cause ? (
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    currentTab === "causal" ? "bg-violet-500/20 text-violet-200" : "bg-slate-800 text-slate-300"
+                  }`}
+                >
+                  KG
+                </span>
+              ) : null}
+            </button>
+            <button
               onClick={() => setCurrentTab("digital_twin")}
               className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
                 currentTab === "digital_twin"
@@ -255,7 +289,15 @@ export default function App() {
           </div>
         </div>
 
-        {currentTab === "workflow" ? (
+        {currentTab === "causal" ? (
+          <div className="animate-in fade-in duration-300">
+            <CausalAnalysisPanel
+              recommendations={recommendations}
+              graphContext={(status.graph_context as GraphContextPayload) || null}
+              graphAlerts={(status.graph_alerts as Array<Record<string, unknown>>) || []}
+            />
+          </div>
+        ) : currentTab === "workflow" ? (
           <div className="space-y-4 animate-in fade-in duration-300">
             <AgentWorkflow lastEvent={lastEvent} completedNodes={completedNodes} activeNode={activeNode} />
             
@@ -310,11 +352,11 @@ export default function App() {
               <ImpactSummary contextMemory={status.context_memory} />
             </div>
           </div>
-        ) : (
+        ) : currentTab === "digital_twin" ? (
           <div className="animate-in fade-in duration-300">
             <DigitalTwinPage results={status.simulation_results || []} />
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

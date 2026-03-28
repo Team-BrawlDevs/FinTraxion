@@ -56,6 +56,18 @@ export default function RecommendationCard(props: {
         </span>
       </div>
 
+      {rec.reason || rec.source ? (
+        <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+          <div className="text-[11px] text-violet-300/90 font-semibold">Causal audit</div>
+          {rec.reason ? (
+            <div className="text-sm text-slate-100 mt-1 leading-relaxed">{rec.reason}</div>
+          ) : null}
+          {rec.source ? (
+            <div className="text-[11px] text-slate-400 mt-2">Source: {rec.source}</div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-3">
         <div className="text-xs text-slate-400">AI Reasoning</div>
         <div className="text-sm text-slate-200 leading-relaxed mt-1">{rec.justification}</div>

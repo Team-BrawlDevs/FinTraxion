@@ -7,8 +7,9 @@ Flow:
    → normalization 
    → usage_analysis 
    → duplicate_detection 
-   → historical_memory 
-   → decision 
+  → historical_memory 
+  → kg_entity_extraction → kg_graph_builder → kg_relationship → kg_causality → kg_context
+  → decision 
    → governance
   
   governance → [any require_approval] → human_approval
@@ -42,6 +43,11 @@ from graph.nodes.simulation import SimulationAgent
 from graph.nodes.cost_model import CostModelAgent
 from graph.nodes.evaluation import EvaluationAgent
 from graph.nodes.strategy import StrategyAgent
+from graph.nodes.kg_entity_extraction import EntityExtractionAgent
+from graph.nodes.kg_graph_builder import GraphBuilderAgent
+from graph.nodes.kg_relationship import RelationshipAgent
+from graph.nodes.kg_causality import CausalityAgent
+from graph.nodes.kg_context import ContextAgent
 
 # ── Conditional edge functions ────────────────────────────────────────────────
 
@@ -90,6 +96,13 @@ def build_graph() -> StateGraph:
     workflow.add_node("enrichment", UsageAnalysisAgent()) # kept string ID "enrichment" for API compat
     workflow.add_node("duplicate_detection", DuplicateDetectionAgent())
     workflow.add_node("historical_memory", HistoricalMemoryAgent())
+
+    # Enterprise Knowledge Graph & Causality (NetworkX)
+    workflow.add_node("kg_entity_extraction", EntityExtractionAgent())
+    workflow.add_node("kg_graph_builder", GraphBuilderAgent())
+    workflow.add_node("kg_relationship", RelationshipAgent())
+    workflow.add_node("kg_causality", CausalityAgent())
+    workflow.add_node("kg_context", ContextAgent())
     
     # NEW Digital Twin Engine Subsystem
     workflow.add_node("digital_twin", DigitalTwinAgent())
@@ -112,9 +125,15 @@ def build_graph() -> StateGraph:
     workflow.add_edge("normalization", "enrichment")
     workflow.add_edge("enrichment", "duplicate_detection")
     workflow.add_edge("duplicate_detection", "historical_memory")
+
+    workflow.add_edge("historical_memory", "kg_entity_extraction")
+    workflow.add_edge("kg_entity_extraction", "kg_graph_builder")
+    workflow.add_edge("kg_graph_builder", "kg_relationship")
+    workflow.add_edge("kg_relationship", "kg_causality")
+    workflow.add_edge("kg_causality", "kg_context")
     
-    # Wire the simulation subsystem inline
-    workflow.add_edge("historical_memory", "digital_twin")
+    # Wire the simulation subsystem inline (uses knowledge_graph from state)
+    workflow.add_edge("kg_context", "digital_twin")
     workflow.add_edge("digital_twin", "scenario_generator")
     workflow.add_edge("scenario_generator", "simulation")
     workflow.add_edge("simulation", "cost_model")

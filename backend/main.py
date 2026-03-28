@@ -159,7 +159,17 @@ async def run_workflow():
         "normalized_services": [],
         "usage_data": [],
         "duplicate_candidates": [],
+        "historical_context": {},
+        "digital_twin": {},
+        "generated_scenarios": [],
+        "simulation_results": [],
+        "recommended_strategy": {},
+        "knowledge_graph": {},
+        "extracted_entities": [],
+        "graph_context": {},
+        "graph_alerts": [],
         "recommendations": [],
+        "governance_flags": [],
         "approved_actions": [],
         "execution_logs": [],
         "errors": [],
@@ -246,6 +256,9 @@ async def get_status(run_id: str = Query(..., description="run_id from POST /run
         "recommended_strategy": state.get("recommended_strategy", {}),
         "execution_logs": state.get("execution_logs", []),
         "context_memory": state.get("context_memory", {}),
+        "graph_context": state.get("graph_context", {}),
+        "graph_alerts": state.get("graph_alerts", []),
+        "knowledge_graph": state.get("knowledge_graph", {}),
     }
 
 

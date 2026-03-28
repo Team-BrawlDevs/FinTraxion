@@ -21,7 +21,12 @@ class AgentState(TypedDict):
     generated_scenarios: list[dict]  # ScenarioGeneratorAgent output
     simulation_results: list[dict]   # EvaluationAgent output
     recommended_strategy: dict       # StrategyAgent output
-    graph_context: dict              # Future expansion
+
+    # Enterprise Knowledge Graph & Causality (NetworkX snapshot + shared context)
+    knowledge_graph: dict            # Serialized graph (nodes/edges) — see services/knowledge_graph_core
+    extracted_entities: list[dict]   # EntityExtractionAgent output
+    graph_context: dict              # ContextAgent: root_cause, affected_services, risk_factors, per-rec hints
+    graph_alerts: list[dict]         # CausalityAgent: anomalies / cost-spike triggers
 
     # Decision & Policy
     recommendations: list[dict]      # DecisionAgent output
