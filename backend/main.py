@@ -242,6 +242,8 @@ async def get_status(run_id: str = Query(..., description="run_id from POST /run
         "errors": state.get("errors", []),
         "recommendations": state.get("recommendations", []),
         "duplicate_candidates": state.get("duplicate_candidates", []),
+        "simulation_results": state.get("simulation_results", []),
+        "recommended_strategy": state.get("recommended_strategy", {}),
         "execution_logs": state.get("execution_logs", []),
         "context_memory": state.get("context_memory", {}),
     }

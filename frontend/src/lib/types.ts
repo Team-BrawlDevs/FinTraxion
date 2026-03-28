@@ -64,6 +64,23 @@ export type ExecutionLog = {
   };
 };
 
+export type SimulationResult = {
+  scenario: {
+    id: string;
+    name: string;
+    type: string;
+    target: string;
+    value?: number;
+    confidence_weight?: number;
+  };
+  predicted_savings: number;
+  confidence: number;
+  score: number;
+  selected?: boolean;
+  mutated_twin_baseline_cost?: number;
+  original_baseline_cost?: number;
+};
+
 export type StatusPayload = {
   run_id: string;
   status: string;
@@ -74,6 +91,7 @@ export type StatusPayload = {
   recommendations: Recommendation[];
   duplicate_candidates: DuplicateCandidate[];
   execution_logs: ExecutionLog[];
+  simulation_results?: SimulationResult[];
   context_memory: any;
 
   // some runs may include extra keys; keep it flexible

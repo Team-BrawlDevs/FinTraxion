@@ -17,7 +17,10 @@ class AgentState(TypedDict):
     
     # Shared Context / Advanced Mocks
     historical_context: dict         # HistoricalMemoryAgent output
-    simulation_results: list[dict]   # Future expansion
+    digital_twin: dict               # DigitalTwinAgent output
+    generated_scenarios: list[dict]  # ScenarioGeneratorAgent output
+    simulation_results: list[dict]   # EvaluationAgent output
+    recommended_strategy: dict       # StrategyAgent output
     graph_context: dict              # Future expansion
 
     # Decision & Policy

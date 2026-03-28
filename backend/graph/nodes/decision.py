@@ -204,13 +204,18 @@ class DecisionAgent:
                 for s in usage_data[:15]
             ],
             "historical_context": historical_context,
+            "digital_twin_metrics": state.get("digital_twin", {}).get("metrics", {}),
             "simulation_results": state.get("simulation_results", []),
+            "recommended_strategy": state.get("recommended_strategy", {}),
             "graph_context": state.get("graph_context", {})
         }
 
         prompt = f"""Analyze the following rich SaaS portfolio context and provide recommendations:
 
 {json.dumps(context, indent=2)}
+
+CRITICAL: You are receiving exact predictions from a Digital Twin simulation engine. 
+Use the `recommended_strategy` and `simulation_results` to guarantee your recommendations are highly accurate and predictive, rather than just reactive guessing.
 
 Return a JSON array of 3-5 recommendations.
 Each item must include: action, action_type, target, params, confidence, risk, savings, justification."""

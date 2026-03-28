@@ -30,14 +30,21 @@ class GovernanceAgent:
         for i, rec in enumerate(recs):
             confidence = rec.get("confidence", 0.0)
             risk = rec.get("risk", "high").lower()
+            savings = rec.get("savings", 0.0)
             
             flag = "require_approval"
             reason = "Default fallback requiring human review."
 
-            if risk == "low":
+            if confidence < 0.70:
+                flag = "require_approval"
+                reason = f"Confidence {confidence} below automated threshold (0.70). Human review required."
+            elif savings > 100.0 and risk == "low":
+                flag = "auto_execute"
+                reason = "High savings and low risk met the deterministic auto-execution threshold."
+            elif risk == "low":
                 flag = "informational"
                 reason = "Low risk items are treated as informational recommendations with no automated action."
-            elif risk in ["medium", "high"]:
+            else:
                 flag = "require_approval"
                 reason = f"Risk factor '{risk}' mandates human approval via policy."
             

@@ -26,7 +26,7 @@ export default function RecommendationCard(props: {
   rec: Recommendation;
   disabled: boolean;
 }) {
-  const { rec, disabled } = props;
+  const { rec } = props;
   const styles = riskStyles(rec.risk);
 
   return (

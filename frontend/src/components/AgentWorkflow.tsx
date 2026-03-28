@@ -1,10 +1,12 @@
 import type { AgentEvent, WorkflowNode } from "@/lib/types";
 import AgentStep from "./AgentStep";
 
-const STEPS: { node: WorkflowNode; label: string }[] = [
+const STEPS = [
   { node: "discovery", label: "Discovery" },
   { node: "normalization", label: "Normalization" },
   { node: "duplicate_detection", label: "Detection" },
+  { node: "digital_twin", label: "Digital Twin" },
+  { node: "evaluation", label: "Simulation" },
   { node: "decision", label: "Decision" },
   { node: "human_approval", label: "Approval" },
   { node: "execution", label: "Execution" },

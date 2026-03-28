@@ -36,15 +36,24 @@ from graph.nodes.human import HumanApprovalAgent
 from graph.nodes.execution import ExecutionAgent
 from graph.nodes.recovery import RecoveryAgent
 from graph.nodes.memory import MemoryUpdateAgent
-
+from graph.nodes.digital_twin import DigitalTwinAgent
+from graph.nodes.scenario_generator import ScenarioGeneratorAgent
+from graph.nodes.simulation import SimulationAgent
+from graph.nodes.cost_model import CostModelAgent
+from graph.nodes.evaluation import EvaluationAgent
+from graph.nodes.strategy import StrategyAgent
 
 # ── Conditional edge functions ────────────────────────────────────────────────
 
 def route_after_governance(state: AgentState) -> str:
-    """If Governance flagged any action as require_approval → route to human."""
+    """If Governance flagged any action as require_approval → route to human. Auto_execute routes directly to execution."""
     flags = state.get("governance_flags", [])
+    
+    # If anything specifically requires approval, we must pause for the human
     if any(f.get("flag") == "require_approval" for f in flags):
         return "human_approval"
+        
+    # If things are informational or auto_execute, they bypass the human flow
     return "execution"
 
 
@@ -76,12 +85,20 @@ def build_graph() -> StateGraph:
     workflow = StateGraph(AgentState)
 
     # Register nodes instantiated as explicitly stateless Agent Callable objects
-    # Note: the string keys are maintained for backward compatibility with main.py SSE stream tracking.
     workflow.add_node("discovery", DiscoveryAgent())
     workflow.add_node("normalization", NormalizationAgent())
     workflow.add_node("enrichment", UsageAnalysisAgent()) # kept string ID "enrichment" for API compat
     workflow.add_node("duplicate_detection", DuplicateDetectionAgent())
     workflow.add_node("historical_memory", HistoricalMemoryAgent())
+    
+    # NEW Digital Twin Engine Subsystem
+    workflow.add_node("digital_twin", DigitalTwinAgent())
+    workflow.add_node("scenario_generator", ScenarioGeneratorAgent())
+    workflow.add_node("simulation", SimulationAgent())
+    workflow.add_node("cost_model", CostModelAgent())
+    workflow.add_node("evaluation", EvaluationAgent())
+    workflow.add_node("strategy", StrategyAgent())
+    
     workflow.add_node("decision", DecisionAgent())
     workflow.add_node("governance", GovernanceAgent())
     workflow.add_node("human_approval", HumanApprovalAgent())
@@ -95,7 +112,16 @@ def build_graph() -> StateGraph:
     workflow.add_edge("normalization", "enrichment")
     workflow.add_edge("enrichment", "duplicate_detection")
     workflow.add_edge("duplicate_detection", "historical_memory")
-    workflow.add_edge("historical_memory", "decision")
+    
+    # Wire the simulation subsystem inline
+    workflow.add_edge("historical_memory", "digital_twin")
+    workflow.add_edge("digital_twin", "scenario_generator")
+    workflow.add_edge("scenario_generator", "simulation")
+    workflow.add_edge("simulation", "cost_model")
+    workflow.add_edge("cost_model", "evaluation")
+    workflow.add_edge("evaluation", "strategy")
+    workflow.add_edge("strategy", "decision")
+    
     workflow.add_edge("decision", "governance")
 
     # Conditional: governance → human_approval OR execution

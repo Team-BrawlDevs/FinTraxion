@@ -8,6 +8,7 @@ import DuplicateDetectionPanel from "@/components/DuplicateDetectionPanel";
 import RecommendationsPanel from "@/components/RecommendationsPanel";
 import ExecutionLogsPanel from "@/components/ExecutionLogsPanel";
 import ImpactSummary from "@/components/ImpactSummary";
+import DigitalTwinPage from "@/components/DigitalTwinPage";
 
 const EMPTY_STATUS: StatusPayload = {
   run_id: "",
@@ -23,9 +24,11 @@ const EMPTY_STATUS: StatusPayload = {
 };
 
 type UiRunState = "Idle" | "Running" | "Completed" | "Error";
+type TabState = "workflow" | "digital_twin";
 
 export default function App() {
   const [uiState, setUiState] = useState<UiRunState>("Idle");
+  const [currentTab, setCurrentTab] = useState<TabState>("workflow");
   const [apiBase] = useState<string>(localStorage.getItem("ft_apiBase") || "http://localhost:8000");
   const [runId, setRunId] = useState<string>("");
   const [lastEvent, setLastEvent] = useState<AgentEvent | null>(null);
@@ -182,8 +185,7 @@ export default function App() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">SaaS Optimization Agent</h1>
-            <p className="text-slate-400 mt-1">Autonomous Cost Intelligence System</p>
+            <h1 className="text-3xl font-extrabold tracking-tight">Autonomous Cost Intelligence System</h1>
             <p className="text-xs text-slate-500 mt-2 max-w-2xl">
               This enterprise control panel visualizes discovery, analysis, decision-making, and execution with human-in-the-loop governance.
             </p>
@@ -208,7 +210,7 @@ export default function App() {
             <button
               onClick={() => runAnalysis()}
               disabled={uiState === "Running"}
-              className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 font-semibold disabled:opacity-60"
+              className="rounded-xl bg-sky-600 hover:bg-sky-500 px-4 py-2 font-semibold disabled:opacity-60 shadow-md shadow-sky-500/20"
             >
               Run Analysis
             </button>
@@ -223,62 +225,96 @@ export default function App() {
           </div>
         </div>
 
-        
-
-        <div className="mt-4 grid grid-cols-1 gap-4">
-          <AgentWorkflow lastEvent={lastEvent} completedNodes={completedNodes} activeNode={activeNode} />
+        <div className="mt-8 mb-6 border-b border-slate-800">
+          <div className="flex gap-6 -mb-px px-2">
+            <button
+              onClick={() => setCurrentTab("workflow")}
+              className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
+                currentTab === "workflow"
+                  ? "border-sky-500 text-sky-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              SaaS Optimization Agent
+            </button>
+            <button
+              onClick={() => setCurrentTab("digital_twin")}
+              className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+                currentTab === "digital_twin"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Digital Twin Simulations
+              {status.simulation_results && status.simulation_results.length > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${currentTab === "digital_twin" ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-300'}`}>
+                  {status.simulation_results.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <DetectedServicesPanel services={services} />
-          <DuplicateDetectionPanel candidates={duplicateCandidates} />
-        </div>
-
-        <div className="mt-4">
-          <RecommendationsPanel
-            recommendations={recommendations}
-            needsHumanApproval={needsHumanApproval}
-            disabled={approveBusy}
-          />
-
-          {needsHumanApproval ? (
-            <div className="mt-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-              <div className="text-sm font-semibold text-yellow-200">Human approval required</div>
-              <div className="text-xs text-yellow-100 mt-1">Run-level approval affects all recommendations produced in the current graph execution.</div>
-              <label className="block mt-3 text-xs text-slate-200">
-                Operator Notes (optional)
-                <textarea
-                  value={approvalNotes}
-                  onChange={(e) => setApprovalNotes(e.target.value)}
-                  className="mt-2 w-full rounded-xl bg-slate-950 border border-yellow-500/20 p-3 text-sm"
-                  placeholder="e.g. Approved for execution during change window"
-                />
-              </label>
-              
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  onClick={() => onApprove("approved")}
-                  disabled={approveBusy}
-                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 disabled:opacity-60 px-5 py-2 text-sm font-bold shadow-sm"
-                >
-                  Approve All
-                </button>
-                <button
-                  onClick={() => onApprove("rejected")}
-                  disabled={approveBusy}
-                  className="rounded-xl bg-rose-600 hover:bg-rose-500 border border-rose-400/30 disabled:opacity-60 px-5 py-2 text-sm font-bold shadow-sm"
-                >
-                  Reject All
-                </button>
-              </div>
+        {currentTab === "workflow" ? (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <AgentWorkflow lastEvent={lastEvent} completedNodes={completedNodes} activeNode={activeNode} />
+            
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <DetectedServicesPanel services={services} />
+              <DuplicateDetectionPanel candidates={duplicateCandidates} />
             </div>
-          ) : null}
-        </div>
 
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ExecutionLogsPanel logs={executionLogs} />
-          <ImpactSummary contextMemory={status.context_memory} />
-        </div>
+            <div className="flex flex-col gap-4">
+              <RecommendationsPanel
+                recommendations={recommendations}
+                needsHumanApproval={needsHumanApproval}
+                disabled={approveBusy}
+              />
+
+              {needsHumanApproval ? (
+                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4">
+                  <div className="text-sm font-semibold text-yellow-200">Human approval required</div>
+                  <div className="text-xs text-yellow-100 mt-1">Run-level approval affects all recommendations produced in the current graph execution.</div>
+                  <label className="block mt-3 text-xs text-slate-200">
+                    Operator Notes (optional)
+                    <textarea
+                      value={approvalNotes}
+                      onChange={(e) => setApprovalNotes(e.target.value)}
+                      className="mt-2 w-full rounded-xl bg-slate-950 border border-yellow-500/20 p-3 text-sm"
+                      placeholder="e.g. Approved for execution during change window"
+                    />
+                  </label>
+                
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => onApprove("approved")}
+                      disabled={approveBusy}
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/30 disabled:opacity-60 px-5 py-2 text-sm font-bold shadow-sm"
+                    >
+                      Approve All
+                    </button>
+                    <button
+                      onClick={() => onApprove("rejected")}
+                      disabled={approveBusy}
+                      className="rounded-xl bg-rose-600 hover:bg-rose-500 border border-rose-400/30 disabled:opacity-60 px-5 py-2 text-sm font-bold shadow-sm"
+                    >
+                      Reject All
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <ExecutionLogsPanel logs={executionLogs} />
+              <ImpactSummary contextMemory={status.context_memory} />
+            </div>
+          </div>
+        ) : (
+          <div className="animate-in fade-in duration-300">
+            <DigitalTwinPage results={status.simulation_results || []} />
+          </div>
+        )}
       </div>
     </div>
   );
