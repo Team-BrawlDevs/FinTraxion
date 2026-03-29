@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pathlib import Path
 
-from db.supabase_client import fetch_rows, memory_set, memory_get
+from db.supabase_client import fetch_rows, memory_get_safe, memory_set, memory_get
 from graph.builder import app_graph
 from graph.state import AgentState
 from utils.logging_utils import get_logger
@@ -48,7 +48,13 @@ app.add_middleware(
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
+FRONTEND_INDEX = FRONTEND_DIST / "index.html"
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+_assets_dir = FRONTEND_DIST / "assets"
+if _assets_dir.is_dir():
+    app.mount("/assets", StaticFiles(directory=_assets_dir), name="vite_assets")
 
 # In-memory state registry
 _run_states: dict[str, AgentState] = {}
@@ -142,7 +148,9 @@ def _run_graph_thread(run_id: str, initial_state: AgentState):
 
 @app.get("/", include_in_schema=False)
 async def frontend():
-    """Serve a lightweight frontend test console."""
+    """Serve merged UI (`frontend/dist` after `npm run build`) or legacy static console."""
+    if FRONTEND_INDEX.is_file():
+        return FileResponse(FRONTEND_INDEX)
     return FileResponse(STATIC_DIR / "index.html")
 
 
@@ -240,14 +248,14 @@ async def stream_logs(run_id: str):
 async def get_status(run_id: str = Query(..., description="run_id from POST /run")):
     """Returns the latest state snapshot for a given run."""
     if run_id not in _run_states:
-        status = memory_get(f"run:{run_id}:status")
+        status = memory_get_safe(f"run:{run_id}:status")
         if status is None:
             raise HTTPException(status_code=404, detail=f"run_id {run_id!r} not found")
         return {"run_id": run_id, "status": status, "source": "supabase_memory"}
 
     state = _run_states[run_id]
-    status = memory_get(f"run:{run_id}:status") or "running"
-    last_error = memory_get(f"run:{run_id}:last_error")
+    status = memory_get_safe(f"run:{run_id}:status") or "running"
+    last_error = memory_get_safe(f"run:{run_id}:last_error")
     return {
         "run_id": run_id,
         "status": status,
@@ -347,3 +355,14 @@ async def get_logs(
 @app.get("/health", summary="Health check")
 async def health():
     return {"status": "ok", "ts": datetime.now(timezone.utc).isoformat()}
+
+
+async def _spa_index():
+    """Serve the Vite bundle for direct navigation to client routes (production)."""
+    if not FRONTEND_INDEX.is_file():
+        raise HTTPException(status_code=404, detail="SPA not built — run `npm run build` in frontend/")
+    return FileResponse(FRONTEND_INDEX)
+
+
+app.add_api_route("/dashboard", _spa_index, methods=["GET"], include_in_schema=False)
+app.add_api_route("/workspace", _spa_index, methods=["GET"], include_in_schema=False)

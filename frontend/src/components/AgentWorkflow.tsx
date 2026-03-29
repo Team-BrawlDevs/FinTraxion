@@ -27,26 +27,29 @@ export default function AgentWorkflow(props: {
 }) {
   const { lastEvent, completedNodes, activeNode } = props;
 
-  const humanWait = lastEvent?.event === "awaiting_human_approval" || activeNode === "human_approval";
+  const humanWait =
+    lastEvent?.event === "awaiting_human_approval" ||
+    activeNode === "human_approval";
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 shadow-sm">
+    <div className="glass-card rounded-md p-5 glass-card-hover">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-sky-200">Agent Workflow</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Discovery → knowledge graph → simulation → decision → execution → quantifiable impact → memory.
+          <h2 className="font-display text-xl text-ink">Agent workflow</h2>
+          <p className="text-xs text-muted mt-1 max-w-2xl">
+            Discovery → knowledge graph → simulation → decision → execution →
+            quantifiable impact → memory.
           </p>
         </div>
 
         {humanWait ? (
-          <div className="px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-200 text-xs font-semibold">
+          <div className="px-3 py-2 rounded-md bg-warning-light border border-warning/30 text-warning text-xs font-semibold">
             Awaiting human approval
           </div>
         ) : null}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-4 flex flex-wrap gap-2">
         {STEPS.map((s) => {
           const isComplete = completedNodes.has(String(s.node));
           const isActive = activeNode === String(s.node);
@@ -63,9 +66,6 @@ export default function AgentWorkflow(props: {
           );
         })}
       </div>
-
-      {/* Agent errors intentionally hidden in internal ops UI; inspect execution logs if needed. */}
     </div>
   );
 }
-

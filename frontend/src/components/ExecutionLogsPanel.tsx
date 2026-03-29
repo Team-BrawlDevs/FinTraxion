@@ -2,11 +2,11 @@ import type { ExecutionLog } from "@/lib/types";
 
 function statusClass(status: string | undefined) {
   const s = (status || "").toLowerCase();
-  if (s === "success") return "text-emerald-200";
-  if (s === "failed") return "text-rose-200";
-  if (s === "retried") return "text-amber-200";
-  if (s === "escalated") return "text-rose-200";
-  return "text-slate-300";
+  if (s === "success") return "text-emerald-700 font-semibold";
+  if (s === "failed") return "text-danger font-semibold";
+  if (s === "retried") return "text-warning font-semibold";
+  if (s === "escalated") return "text-danger font-semibold";
+  return "text-muted";
 }
 
 export default function ExecutionLogsPanel(props: {
@@ -16,28 +16,27 @@ export default function ExecutionLogsPanel(props: {
   const { logs, executionResults } = props;
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 shadow-sm">
-      <h2 className="text-base font-bold text-sky-200">Execution Logs</h2>
-      <p className="text-xs text-slate-400 mt-1">
-        Terminal-style audit trail of remediation attempts and retries
-        (simulated execution).
+    <div className="glass-card rounded-md p-5 glass-card-hover">
+      <h2 className="font-display text-xl text-ink">Execution logs</h2>
+      <p className="text-xs text-muted mt-1">
+        Audit trail of remediation attempts and retries (simulated execution).
       </p>
 
       {executionResults && executionResults.length > 0 ? (
-        <div className="mt-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
-          <div className="text-[11px] font-bold text-cyan-200 uppercase tracking-wide">
-            Predicted vs actual (Impact Engine)
+        <div className="mt-4 rounded-md border border-accent/30 bg-accent-light/50 p-3">
+          <div className="text-[11px] font-bold text-accent uppercase tracking-wide">
+            Predicted vs actual (impact engine)
           </div>
-          <div className="mt-2 space-y-2 text-xs text-slate-200">
+          <div className="mt-2 space-y-2 text-xs text-ink">
             {executionResults.map((r, i) => (
               <div
                 key={i}
-                className="flex flex-wrap justify-between gap-2 border-b border-slate-800/80 pb-2 last:border-0 last:pb-0"
+                className="flex flex-wrap justify-between gap-2 border-b border-edge pb-2 last:border-0 last:pb-0"
               >
-                <span className="text-slate-300 truncate max-w-[55%]">
+                <span className="text-muted truncate max-w-[55%]">
                   {String(r.action ?? "")}
                 </span>
-                <span className="text-emerald-300 font-mono">
+                <span className="text-emerald-800 font-mono font-semibold">
                   pred ₹
                   {Math.round(Number(r.predicted_savings ?? 0)).toLocaleString(
                     "en-IN",
@@ -53,9 +52,9 @@ export default function ExecutionLogsPanel(props: {
         </div>
       ) : null}
 
-      <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/40 p-3 font-mono text-xs text-slate-200 max-h-72 overflow-auto">
+      <div className="mt-4 rounded-md border border-edge bg-gray-50 p-3 font-mono text-xs text-ink max-h-72 overflow-auto">
         {logs.length === 0 ? (
-          <div className="text-slate-400">No execution logs yet.</div>
+          <div className="text-muted">No execution logs yet.</div>
         ) : (
           logs
             .slice()
@@ -65,25 +64,25 @@ export default function ExecutionLogsPanel(props: {
             .map((l) => (
               <div
                 key={l.id}
-                className="mb-3 pb-3 border-b border-slate-800 last:border-b-0 last:mb-0 last:pb-0"
+                className="mb-3 pb-3 border-b border-edge last:border-b-0 last:mb-0 last:pb-0"
               >
-                <div className="text-slate-400">
+                <div className="text-muted">
                   [{new Date(l.timestamp).toLocaleTimeString()}]{" "}
                   <span className={statusClass(l.status)}> {l.status}</span>
                 </div>
-                <div className="mt-1">{l.action}</div>
+                <div className="mt-1 text-ink">{l.action}</div>
                 {l.details?.error ? (
-                  <div className="mt-1 text-rose-200">
+                  <div className="mt-1 text-danger text-sm">
                     Error: {l.details.error}
                   </div>
                 ) : null}
                 {l.details?.result ? (
-                  <div className="mt-2 text-slate-400 break-words">
+                  <div className="mt-2 text-muted break-words text-[11px]">
                     {JSON.stringify(l.details.result)}
                   </div>
                 ) : null}
                 {l.details?.recovered_on_attempt ? (
-                  <div className="mt-1 text-slate-400">
+                  <div className="mt-1 text-muted">
                     Recovered on attempt #{l.details.recovered_on_attempt}
                   </div>
                 ) : null}

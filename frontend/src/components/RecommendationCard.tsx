@@ -3,22 +3,22 @@ import type { Recommendation } from "@/lib/types";
 function riskStyles(risk: Recommendation["risk"]) {
   if (risk === "high") {
     return {
-      border: "border-rose-500/30",
-      bg: "bg-rose-500/10",
-      pill: "bg-rose-500/10 border-rose-500/30 text-rose-200",
+      border: "border-danger/25",
+      bg: "bg-danger-light/60",
+      pill: "bg-danger-light border-danger/30 text-danger",
     };
   }
   if (risk === "medium") {
     return {
-      border: "border-amber-500/30",
-      bg: "bg-amber-500/10",
-      pill: "bg-amber-500/10 border-amber-500/30 text-amber-200",
+      border: "border-warning/30",
+      bg: "bg-warning-light/80",
+      pill: "bg-warning-light border-warning/40 text-warning",
     };
   }
   return {
-    border: "border-emerald-500/30",
-    bg: "bg-emerald-500/10",
-    pill: "bg-emerald-500/10 border-emerald-500/30 text-emerald-200",
+    border: "border-emerald-200",
+    bg: "bg-success-light/60",
+    pill: "bg-success-light border-emerald-300 text-emerald-900",
   };
 }
 
@@ -30,49 +30,50 @@ export default function RecommendationCard(props: {
   const styles = riskStyles(rec.risk);
 
   return (
-    <div className={`rounded-2xl border ${styles.border} ${styles.bg} p-4 shadow-sm`}>
+    <div className={`rounded-md border ${styles.border} ${styles.bg} p-4 shadow-sm`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs text-slate-400">Action</div>
-          <div className="text-sm font-bold text-slate-100 mt-1">{rec.action}</div>
+          <div className="text-xs text-muted uppercase tracking-wide">Action</div>
+          <div className="text-sm font-bold text-ink mt-1">{rec.action}</div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <span className={`px-2 py-1 rounded-lg text-xs border ${styles.pill}`}>
+          <span className={`px-2 py-1 rounded-md text-xs border font-medium ${styles.pill}`}>
             Risk: {rec.risk}
           </span>
-          <span className="px-2 py-1 rounded-lg bg-slate-800/40 border border-slate-700 text-slate-200 text-xs">
+          <span className="px-2 py-1 rounded-md bg-gray-100 border border-edge text-muted text-xs font-medium">
             {Math.round((rec.confidence || 0) * 100)}% confidence
           </span>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
-        <span className="px-2 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-200">
-          Savings: ₹{Math.round(Number(rec.savings || 0)).toLocaleString("en-IN")}/mo (mock)
+        <span className="px-2 py-1 rounded-md bg-primary-light border border-primary/20 text-primary-dark font-medium">
+          Savings: ₹{Math.round(Number(rec.savings || 0)).toLocaleString("en-IN")}/mo
         </span>
-        <span className="px-2 py-1 rounded-lg bg-slate-800/40 border border-slate-700 text-slate-300">
+        <span className="px-2 py-1 rounded-md bg-gray-100 border border-edge text-muted font-medium">
           Type: {rec.action_type}
         </span>
       </div>
 
       {rec.reason || rec.source ? (
-        <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
-          <div className="text-[11px] text-violet-300/90 font-semibold">Causal audit</div>
+        <div className="mt-3 rounded-md border border-primary/15 bg-primary-light/40 p-3">
+          <div className="text-[11px] text-primary-dark font-semibold uppercase tracking-wide">
+            Causal audit
+          </div>
           {rec.reason ? (
-            <div className="text-sm text-slate-100 mt-1 leading-relaxed">{rec.reason}</div>
+            <div className="text-sm text-ink mt-1 leading-relaxed">{rec.reason}</div>
           ) : null}
           {rec.source ? (
-            <div className="text-[11px] text-slate-400 mt-2">Source: {rec.source}</div>
+            <div className="text-[11px] text-muted mt-2">Source: {rec.source}</div>
           ) : null}
         </div>
       ) : null}
 
       <div className="mt-3">
-        <div className="text-xs text-slate-400">AI Reasoning</div>
-        <div className="text-sm text-slate-200 leading-relaxed mt-1">{rec.justification}</div>
+        <div className="text-xs text-muted">AI reasoning</div>
+        <div className="text-sm text-ink leading-relaxed mt-1">{rec.justification}</div>
       </div>
     </div>
   );
 }
-

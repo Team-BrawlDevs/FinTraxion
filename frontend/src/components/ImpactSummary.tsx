@@ -31,68 +31,60 @@ export default function ImpactSummary(props: Props) {
   );
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 shadow-sm">
+    <div className="glass-card rounded-md p-5 glass-card-hover">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-sky-200">
-            Quantifiable impact
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Baseline vs realized savings, ROI, and efficiency from the Impact
-            Engine (post-execution).
+          <h2 className="font-display text-xl text-ink">Quantifiable impact</h2>
+          <p className="text-xs text-muted mt-1">
+            Baseline vs realized savings, ROI, and efficiency (post-execution).
           </p>
         </div>
-        <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-xs font-semibold">
+        <div className="px-3 py-2 rounded-md bg-success-light border border-emerald-300 text-emerald-900 text-xs font-semibold">
           Impact pipeline
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4">
-          <div className="text-xs text-slate-400">Realized savings (mo)</div>
-          <div className="text-2xl font-extrabold text-emerald-200 mt-1">
+        <div className="rounded-md border border-edge bg-gray-50/90 p-4">
+          <div className="text-xs text-muted font-medium">Realized savings (mo)</div>
+          <div className="text-2xl font-bold text-emerald-800 mt-1 font-display">
             ₹{Math.round(realizedMonthly).toLocaleString("en-IN")}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-xs text-muted mt-1">
             Annualized ≈ ₹
             {Math.round(totalSavingsYearly).toLocaleString("en-IN")}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4">
-          <div className="text-xs text-slate-400">
+        <div className="rounded-md border border-edge bg-gray-50/90 p-4">
+          <div className="text-xs text-muted font-medium">
             ROI (× annual vs est. change cost)
           </div>
-          <div className="text-2xl font-extrabold text-sky-200 mt-1">
+          <div className="text-2xl font-bold text-primary-dark mt-1 font-display">
             {roiMult > 0 ? `${roiMult.toFixed(2)}×` : "—"}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-xs text-muted mt-1">
             {im?.implementation_cost_estimate != null
               ? `Est. implementation ₹${Math.round(Number(im.implementation_cost_estimate)).toLocaleString("en-IN")}`
               : "Heuristic program cost"}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4">
-          <div className="text-xs text-slate-400">Efficiency gain</div>
-          <div className="text-2xl font-extrabold text-amber-200 mt-1">
+        <div className="rounded-md border border-edge bg-gray-50/90 p-4">
+          <div className="text-xs text-muted font-medium">Efficiency gain</div>
+          <div className="text-2xl font-bold text-warning mt-1 font-display">
             {effPct > 0 ? `${effPct.toFixed(2)}%` : "—"}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            Share of baseline cost removed
-          </div>
+          <div className="text-xs text-muted mt-1">Share of baseline cost removed</div>
         </div>
       </div>
 
       {(predicted > 0 || variance !== 0) && (
-        <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 text-xs text-slate-200">
-          <span className="font-semibold text-violet-200">
-            Simulation vs execution:{" "}
-          </span>
-          predicted ₹{Math.round(predicted).toLocaleString("en-IN")}/mo ·
-          variance{" "}
+        <div className="mt-4 rounded-md border border-primary/20 bg-primary-light/40 p-3 text-xs text-ink">
+          <span className="font-semibold text-primary-dark">Simulation vs execution: </span>
+          predicted ₹{Math.round(predicted).toLocaleString("en-IN")}/mo · variance{" "}
           <span
-            className={variance > 0 ? "text-amber-300" : "text-emerald-300"}
+            className={variance > 0 ? "text-warning font-semibold" : "text-emerald-700 font-semibold"}
           >
             {variance > 0 ? "−" : "+"}
             {Math.abs(Math.round(variance)).toLocaleString("en-IN")}
@@ -101,36 +93,34 @@ export default function ImpactSummary(props: Props) {
         </div>
       )}
 
-      <div className="mt-6 rounded-xl border border-slate-800/50 bg-slate-950/20 p-4">
-        <h3 className="text-sm font-bold text-slate-300 mb-4">
+      <div className="mt-6 rounded-md border border-edge bg-white p-4">
+        <h3 className="text-sm font-bold text-ink mb-4 font-sans">
           Before / after (monthly baseline)
         </h3>
 
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-slate-400">Before optimization</span>
-              <span className="font-bold text-slate-200 tracking-wide">
+              <span className="text-muted">Before optimization</span>
+              <span className="font-bold text-ink tracking-wide font-mono">
                 ₹{Math.round(totalCostBefore).toLocaleString("en-IN")}
               </span>
             </div>
-            <div className="w-full bg-slate-800/50 rounded-full h-3 overflow-hidden">
-              <div className="bg-slate-500 h-full rounded-full transition-all duration-1000 ease-in-out w-full" />
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div className="bg-gray-400 h-full rounded-full transition-all duration-1000 ease-in-out w-full" />
             </div>
           </div>
 
           <div>
             <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-slate-400">
-                After optimization (realized)
-              </span>
-              <span className="font-bold text-emerald-400 tracking-wide">
+              <span className="text-muted">After optimization (realized)</span>
+              <span className="font-bold text-emerald-800 tracking-wide font-mono">
                 ₹{Math.round(totalCostAfter).toLocaleString("en-IN")}
               </span>
             </div>
-            <div className="w-full bg-slate-800/50 rounded-full h-3 overflow-hidden">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
               <div
-                className="bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)] h-full rounded-full transition-all duration-1000 ease-in-out"
+                className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-in-out shadow-sm"
                 style={{ width: `${afterPct}%` }}
               />
             </div>
@@ -139,10 +129,8 @@ export default function ImpactSummary(props: Props) {
       </div>
 
       {learn && Object.keys(learn).length > 0 ? (
-        <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-950/30 p-3 text-xs text-slate-300">
-          <span className="font-semibold text-slate-200">
-            Learning signal:{" "}
-          </span>
+        <div className="mt-4 rounded-md border border-edge bg-gray-50 p-3 text-xs text-ink">
+          <span className="font-semibold text-ink">Learning signal: </span>
           predicted ₹
           {Math.round(Number(learn.predicted_savings ?? 0)).toLocaleString(
             "en-IN",
@@ -152,8 +140,8 @@ export default function ImpactSummary(props: Props) {
             "en-IN",
           )}{" "}
           · variance ₹
-          {Math.round(Number(learn.variance ?? 0)).toLocaleString("en-IN")} (fed
-          back into global memory for calibration)
+          {Math.round(Number(learn.variance ?? 0)).toLocaleString("en-IN")}{" "}
+          (fed back into global memory)
         </div>
       ) : null}
     </div>

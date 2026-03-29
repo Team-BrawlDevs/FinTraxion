@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Any
 
+import httpx
 from supabase import create_client, Client
 
 from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
@@ -85,3 +86,15 @@ def memory_get(key: str) -> Any | None:
     if rows:
         return json.loads(rows[0]["value"])
     return None
+
+
+def memory_get_safe(key: str) -> Any | None:
+    """
+    Like memory_get but returns None on transport/PostgREST failures so API handlers
+    can still return in-process state (e.g. GET /status during a flaky Supabase connection).
+    """
+    try:
+        return memory_get(key)
+    except (httpx.RemoteProtocolError, httpx.HTTPError, OSError) as exc:
+        logger.warning("memory_get failed for key=%r: %s", key, exc)
+        return None
