@@ -32,24 +32,30 @@ export default function AgentWorkflow(props: {
     activeNode === "human_approval";
 
   return (
-    <div className="glass-card rounded-md p-5 glass-card-hover">
-      <div className="flex items-start justify-between gap-3">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 p-6 shadow-xl backdrop-blur-xl group/panel transition-all duration-500 hover:border-slate-300 hover:shadow-2xl">
+      <div className="pointer-events-none absolute -inset-px rounded-2xl border border-slate-200 opacity-50"></div>
+      <div className="pointer-events-none absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/40 to-transparent"></div>
+
+      <div className="relative z-10 flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl text-ink">Agent workflow</h2>
-          <p className="text-xs text-muted mt-1 max-w-2xl">
+          <h2 className="bg-gradient-to-r from-indigo-900 to-slate-700 bg-clip-text font-display text-2xl font-bold tracking-tight text-transparent">
+            Agent workflow
+          </h2>
+          <p className="text-sm text-slate-600 mt-2 font-medium max-w-2xl leading-relaxed">
             Discovery → knowledge graph → simulation → decision → execution →
             quantifiable impact → memory.
           </p>
         </div>
 
         {humanWait ? (
-          <div className="px-3 py-2 rounded-md bg-warning-light border border-warning/30 text-warning text-xs font-semibold">
+          <div className="px-4 py-2 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-sm flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
             Awaiting human approval
           </div>
         ) : null}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="relative z-10 mt-6 flex flex-wrap gap-2.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200 shadow-inner">
         {STEPS.map((s) => {
           const isComplete = completedNodes.has(String(s.node));
           const isActive = activeNode === String(s.node);

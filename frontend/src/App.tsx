@@ -211,7 +211,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
@@ -229,12 +229,12 @@ export default function App() {
               className={[
                 "px-3 py-2 rounded-xl border text-sm font-semibold",
                 uiState === "Idle"
-                  ? "bg-slate-800/50 border-slate-700 text-slate-200"
+                  ? "bg-slate-100/80 border-slate-200 text-slate-600"
                   : uiState === "Running"
-                    ? "bg-sky-500/10 border-sky-400/30 text-sky-200"
+                    ? "bg-sky-50 border-sky-200 text-sky-700"
                     : uiState === "Completed"
-                      ? "bg-emerald-500/10 border-emerald-400/30 text-emerald-200"
-                      : "bg-rose-500/10 border-rose-400/30 text-rose-200",
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                      : "bg-rose-50 border-rose-200 text-rose-700",
               ].join(" ")}
             >
               Status: {uiState}
@@ -251,21 +251,21 @@ export default function App() {
             <button
               onClick={() => resetRun()}
               disabled={!runId}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 font-semibold disabled:opacity-60"
+              className="rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 font-semibold disabled:opacity-60 shadow-sm transition-colors"
             >
               Refresh
             </button>
           </div>
         </div>
 
-        <div className="mt-8 mb-6 border-b border-slate-800">
+        <div className="mt-8 mb-6 border-b border-slate-200">
           <div className="flex gap-6 -mb-px px-2">
             <button
               onClick={() => setCurrentTab("workflow")}
               className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
                 currentTab === "workflow"
-                  ? "border-sky-500 text-sky-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "border-sky-500 text-sky-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
               SaaS Optimization Agent
@@ -274,8 +274,8 @@ export default function App() {
               onClick={() => setCurrentTab("causal")}
               className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
                 currentTab === "causal"
-                  ? "border-violet-500 text-violet-300"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "border-violet-500 text-violet-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
               Causal analysis
@@ -284,8 +284,8 @@ export default function App() {
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-[10px] ${
                     currentTab === "causal"
-                      ? "bg-violet-500/20 text-violet-200"
-                      : "bg-slate-800 text-slate-300"
+                      ? "bg-violet-100 text-violet-700"
+                      : "bg-slate-100 text-slate-500 border border-slate-200"
                   }`}
                 >
                   KG
@@ -296,15 +296,15 @@ export default function App() {
               onClick={() => setCurrentTab("digital_twin")}
               className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
                 currentTab === "digital_twin"
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "border-emerald-500 text-emerald-600"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
               Digital Twin Simulations
               {status.simulation_results &&
                 status.simulation_results.length > 0 && (
                   <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${currentTab === "digital_twin" ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-300"}`}
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${currentTab === "digital_twin" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500 border border-slate-200"}`}
                   >
                     {status.simulation_results.length}
                   </span>
@@ -346,20 +346,20 @@ export default function App() {
               />
 
               {needsHumanApproval ? (
-                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-                  <div className="text-sm font-semibold text-yellow-200">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                  <div className="text-sm font-bold text-amber-900">
                     Human approval required
                   </div>
-                  <div className="text-xs text-yellow-100 mt-1">
+                  <div className="text-xs text-amber-700 mt-1">
                     Run-level approval affects all recommendations produced in
                     the current graph execution.
                   </div>
-                  <label className="block mt-3 text-xs text-slate-200">
+                  <label className="block mt-4 text-xs font-semibold text-slate-700">
                     Operator Notes (optional)
                     <textarea
                       value={approvalNotes}
                       onChange={(e) => setApprovalNotes(e.target.value)}
-                      className="mt-2 w-full rounded-xl bg-slate-950 border border-yellow-500/20 p-3 text-sm"
+                      className="mt-2 w-full rounded-xl bg-white border border-amber-200 shadow-sm p-3 text-sm outline-none focus:border-amber-400 text-slate-900 transition-colors"
                       placeholder="e.g. Approved for execution during change window"
                     />
                   </label>
